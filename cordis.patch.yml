@@ -1,0 +1,16 @@
+# 组合包层：向当前组合插入试验方案工具插件。
+#
+# 用户可在自己 profile 的 cordis.patch.yml 中按 id 覆盖下面这行来改配置——
+# patch 会替换目标行的整个 config，因此要重述需要的每个键，而不是只写改动的那个。
+- insert:
+    - id: test-plan-tool
+      name: dsh-test-plan-tool
+      config:
+        # 租户 id，随每次请求发送；默认 1，按需覆盖。
+        tenantId: 1
+        # 试验方案数据接口地址；默认 55 环境 admin-api。
+        url: 'http://120.232.136.52:8095/admin-api/third/protocol/test-plan/getAiTestPlanData'
+        # 请求超时（毫秒）。
+        timeoutMs: 30000
+        # 生成文档的输出目录；相对路径以 dsh 进程工作目录为基准。
+        outDir: 'dsh-output'
