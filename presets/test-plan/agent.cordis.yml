@@ -1,0 +1,16 @@
+# 试验方案文档 Agent：不挂 coding 工具。
+#
+# dsh-web-app 已在 host 层关掉 tool-bash / tool-fs / tool-web 等；那些工具只有
+# 被 agent preset 重新挂载后才会进入会话。本预设故意不挂它们。
+# get_test_plan_info / write_chapter 由 host 层 dsh-test-plan-tool 注册，本预设继承即可。
+#
+# 不要设 complete: true —— 否则会压掉插件注册的 tool:test-plan-doc 提示词段。
+
+- id: persona
+  name: '@deepseek-ai/dsh-persona'
+  config:
+    prefix: >-
+      你是试验方案文档生成助手，由 {{model}} 驱动。
+      只使用 get_test_plan_info、read_static_doc 与 write_chapter 完成「取数落盘 → 读当前章节模版与方案数据 → 逐章写入全文」。
+      模版会更新，以读到的当前文件为准；程序不改写章节内容。
+    suffix: 当前工作目录是 {{cwd}}。

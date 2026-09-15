@@ -1,11 +1,12 @@
 # dsh-test-plan-tool
 
-DeepSeek Harness（`dsh`）插件：提供两个 model-facing 工具，完成「取试验方案 → 按模版生成文档」：
+DeepSeek Harness（`dsh`）插件：提供三个 model-facing 工具，完成「取试验方案 → 按需查阅资料与章节模版 → 逐章生成文档」：
 
 | 工具 | 作用 |
 | --- | --- |
-| `get_test_plan_info` | 按 `planId` 从 Java 侧 admin-api 取回试验方案完整数据 |
-| `write_chapter` | 按模版逐章写入文档；全部写完落盘为一份 HTML |
+| `get_test_plan_info` | 按 `planId` 取数，完整 JSON 写入 `dataDir`，工具结果只回摘要与路径 |
+| `read_static_doc` | 只读查阅 `doc/` 静态资料、`templates/dynamic-v1/` 章节模版与 `dataDir` 中的方案 JSON |
+| `write_chapter` | 按公文顺序写入各章全文（`content` 原样保存）；全部写完落盘为一份 HTML |
 
 这是一个**组合包（bundle）**：`package.json` 声明 `dsh.bundle`，配 `cordis.patch.yml` 提供一层
 patch，通过 `dsh plugin` 安装进 profile。下文命令中的 `<profile>` 是 profile 名，按需替换
@@ -19,56 +20,72 @@ patch，通过 `dsh plugin` 安装进 profile。下文命令中的 `<profile>` �
 | --- | --- |
 | 参数 | `planId`（string，**必填**） |
 | tenantId | 由部署配置提供，**不作为工具参数**；默认 `1` |
-| 返回 | 规范 JSON 值 `{ planId, tenantId, data }`，`data` 为接口 `data` 载荷原样透出 |
+| 返回 | `{ planId, tenantId, path, filePath, lines, bytes, topKeys, basic, adoptedPoints }`，**不含**完整 `data` |
+| 落盘 | 把接口 `data` 美化写成 `{dataDir}/{planId}.json`（非法字符会从文件名剔除） |
 | 请求 | `POST {url}`，体为 `{"tenantId":<配置值>,"planId":"<参数>"}` |
 
-取数成功后，方案身份与已采纳功能点会记入插件会话状态，供 `write_chapter` 渲染封面与 05 章。
+完整方案往往很大，直接放进工具结果会被 harness 截断。因此本工具只回摘要和相对路径；模型用
+`read_static_doc` 传入返回的 `path`，按 `offset`/`limit` 分页读 JSON。取数成功后方案身份记入
+插件会话状态，并清空已写章节；随后必须从封面起按序调用 `write_chapter`。
 
 ### `write_chapter`
 
 | 项 | 值 |
 | --- | --- |
-| 参数 | `chapterNo`（`cover` / `05` / `01`–`04` / `06`–`11`）、`blocks`（结构化正文块） |
-| 返回 | `{ chapterNo, done, missing, documentPath }` |
-| 渲染 | 模型只交 blocks，**HTML 由程序生成**，模型无法注入 HTML |
-| 落盘 | 12 章全部写完时，按公文顺序合成一份 HTML 写到 `{outDir}/{planId}.html` |
+| 参数 | `chapterNo`（`cover` → `01`–`11`，必须是当前下一章）、`content`（该章全文） |
+| 返回 | `{ chapterNo, done, next, missing, documentPath }` |
+| 内容 | **原样保存**，不改写、不套模版、不规定这一章写什么 |
+| 顺序 | 必须按 `cover → 01 → … → 11` 写入，跳章或乱序会失败 |
+| 进度 | 按 `exec.agent.id`（session）隔离，写入 `{stateDir}/{sessionId}.json` |
+| 落盘 | 12 章全部写完时，按同一公文顺序拼成一份 HTML 写到 `{outDir}/{planId}.html` |
 
-正文块类型：`paragraph` / `heading` / `list` / `table`。`recommendation: true` 的块会在文档中
-前置「建议（待确认）」。第 09 章「状态」列的非法取值会收敛为「待确认」。
+写某一章前用 `read_static_doc` 读当前模版；模版会改，以读到的文件为准。
 
-**封面与 05 章由程序渲染**，忽略模型传入的 blocks：封面取 `basicInfo` 的
-方案名称/编号/型号/系统名，05 章只列已采纳功能点目录与数量。
+### `read_static_doc`
+
+静态参考资料放在插件的 `doc/`（可用 `docDir` 覆盖），章节模版在 `templates/dynamic-v1/`，
+取数 JSON 放在 `dataDir`（默认 `dsh-plan-data/`），**都不写入系统提示全文**。
+`.md`/`.txt` 走静态目录，`.html` 走模版目录，`.json` 走取数目录。
+
+| 项 | 值 |
+| --- | --- |
+| 参数 | `path`（相对路径，可省略）、`offset`（起始行，从 1 计）、`limit`（本页行数） |
+| 列出 | 不传 `path` 或传空串，返回目录（文件名、kind、行数），不含正文 |
+| 读取 | 传入 `path`，默认每次 80 行、最多 200 行；`hasMore` 时用 `nextOffset` 继续 |
+| 权限 | **只读**；路径必须落在对应根目录内，拒绝 `..` 与绝对路径 |
+
+当前自带静态资料：`业务术语解释.md`、`特设POC-本体平台接.md`。
+章节模版：`cover.html`、`01.html` … `11.html`，写该章前读取；内容会更新。
 
 ## 目录
 
 ```
 dsh-test-plan-tool/
 ├── package.json          # 声明 dsh.bundle，指向下面的 patch 层
-├── cordis.patch.yml      # 组合包层：插入插件行并给出默认配置
-├── index.js              # 插件入口：两个工具的注册与 Config schema
-├── src/chapters.js       # 章节目录（编号/名称/生成规则）
-├── src/render.js         # blocks → HTML，并套用模版
-├── tools/write_chapter.js# write_chapter 工具定义
-├── templates/dynamic-v1/ # 12 个章节模版（cover + 01–11，含 {{body}}/{{sources}}）
+├── cordis.patch.yml      # 组合包层：插入插件行、默认配置，并把 Web 默认预设改成 test-plan
+├── index.js              # 插件入口：Config、注册工具与提示词
+├── src/chapters.js       # 章节目录与公文顺序（cover → 01–11）
+├── src/session-state.js  # 按 session 读写写章进度 sidecar
+├── src/prompt.js         # 取数落盘 → 读当前模版与方案数据 → 按序写章
+├── src/static-docs.js    # 静态文档、章节模版与取数 JSON 的目录、分页读取与路径沙箱
+├── tools/get_test_plan_info.js  # get_test_plan_info 工具
+├── tools/read_static_doc.js     # read_static_doc 工具（只读）
+├── tools/write_chapter.js       # write_chapter 工具
+├── templates/dynamic-v1/ # 12 个章节模版（cover + 01–11），以当前文件为准，程序不渲染
+├── doc/                  # 静态参考资料（只读，模型按需分页读取）
+├── presets/test-plan/    # Web agent 预设：不挂 bash/fs/web，只继承本插件工具
 ├── index.test.js         # get_test_plan_info 单测
-├── chapters.test.js      # 章节渲染与 write_chapter 单测
+├── chapters.test.js      # 章节顺序与 write_chapter 单测
+├── presets.test.js       # 预设文件与 patch 约束
 ├── e2e.mjs               # 端到端：真实取数 + 逐章生成 + 落盘
 └── README.md
 ```
 
-## 按模版生成
+## 章节模版
 
-模版是 `templates/dynamic-v1/<章节>.html`，统一形如：
-
-```html
-<h1>01 范围</h1>
-<div class="chapter-body">{{body}}</div>
-{{sources}}
-```
-
-`fillTemplate()` 把渲染好的正文灌入 `{{body}}`；`{{sources}}` 本插件不逐块标注来源，替换为空串
-（必须替换，否则 HTML 不完整）。模版来自 ontology-ai-runtime 的 `plan_doc_generation/templates/`，
-行为与之保持一致。
+`templates/dynamic-v1/<章节>.html` 是各章的当前模版，**会更新**。模型写某一章前用
+`read_static_doc` 读对应文件（`cover.html` / `01.html` …），按读到的内容组织该章全文，
+交给 `write_chapter` 的 `content`。程序不读取模版做填充，也不规定各章必须写什么。
 
 ## 安装
 
@@ -122,7 +139,8 @@ $DSH plugin --profile <profile> add @deepseek-ai/dsh-web-app@0.1.5-rc.2
 ]
 ```
 
-顺序即层序（后应用者胜）：`dsh-web-app` 覆盖 `dsh-base` 的行，本插件只 insert 自己的行，互不冲突。
+顺序即层序（后应用者胜）：`dsh-web-app` 覆盖 `dsh-base` 的行；本插件 insert 自己的工具行，
+并把 `agent-presets` 的默认预设改成 `test-plan`（见下文「Agent 预设」）。
 
 ### 4. 启动
 
@@ -149,7 +167,33 @@ $DSH --profile <profile> --dump-config | grep -A 6 dsh-test-plan-tool
 应看到 `# == dsh-test-plan-tool` 一段及配置值。
 
 启动后在 Web UI 中提问，例如「获取 planId 为 `ba88e937c2844ed0e9975fc8a3ddcf26` 的试验方案信息」，
-模型会调用 `get_test_plan_info` 并返回方案数据。
+模型会调用 `get_test_plan_info` 并返回方案数据。新会话默认走 `test-plan` 预设，不应再出现
+`bash` / `read` / `web_search` 等编码工具。
+
+核对预设是否进名单：
+
+```sh
+$DSH --profile <profile> --dump-config | grep -A 12 'id: agent-presets'
+```
+
+应看到 `default: test-plan`，以及指向本包 `presets/` 的 `roots`。已开始的旧会话仍沿用创建时的预设，
+需要**新建会话**才会切到 `test-plan`。
+
+## Agent 预设
+
+`dsh-web-app` 在 host 层关掉 `tool-bash` / `tool-fs` / `tool-web` 等，再按会话从 preset 重新挂载。
+因此不能靠 profile 的 `cordis.patch.yml` 去关 `tool-bash`——对 Web 会话无效。本组合包提供
+`presets/test-plan/`：
+
+| 项 | 值 |
+| --- | --- |
+| 目录名 / id | `test-plan` |
+| 显示名 | 试验方案 |
+| 模型可见工具 | host 层的 `get_test_plan_info`、`read_static_doc`、`write_chapter` |
+| 不挂载 | bash/pwsh、read/write/edit、glob/grep、web_search/web_fetch、subagent、workflow、todo、skill 等 |
+
+内置 `standard` 仍可在新会话选择器里选（编码 Agent）。若要改回默认 `standard`，在自己 profile 的
+`cordis.patch.yml` 里按 `id: agent-presets` 覆盖，并**重述**整份 config（patch 不是深度合并）。
 
 ## 配置
 
@@ -163,6 +207,9 @@ $DSH --profile <profile> --dump-config | grep -A 6 dsh-test-plan-tool
     url: 'http://other-host/admin-api/third/protocol/test-plan/getAiTestPlanData'
     timeoutMs: 60000
     outDir: '/data/plan-docs'                      # 覆盖默认 dsh-output
+    docDir: '/data/plan-static-docs'               # 覆盖默认插件自带 doc/
+    dataDir: '/data/plan-json'                     # 覆盖默认 dsh-plan-data
+    stateDir: '/data/plan-state'                    # 覆盖默认 dsh-plan-state
 ```
 
 | 键 | 类型 | 默认 | 说明 |
@@ -171,6 +218,9 @@ $DSH --profile <profile> --dump-config | grep -A 6 dsh-test-plan-tool
 | `url` | string | 55 环境 admin-api 地址 | 试验方案数据接口 |
 | `timeoutMs` | number | `30000` | 请求超时；与调用方的取消信号取其一 |
 | `outDir` | string | `dsh-output` | 生成文档的输出目录；相对路径以 dsh 进程工作目录为基准 |
+| `docDir` | string | 空（使用插件 `doc/`） | 静态参考文档根目录；相对路径以进程工作目录为基准 |
+| `dataDir` | string | `dsh-plan-data` | `get_test_plan_info` 完整 JSON 落盘目录 |
+| `stateDir` | string | `dsh-plan-state` | 按 session 隔离的写章进度 sidecar |
 
 配置在插件加载时经 Schemastery schema 校验，非法值会**加载失败并报错**，而不是静默兜底。
 
@@ -225,23 +275,26 @@ $DSH --profile <profile> --dump-config | grep -A 6 dsh-test-plan-tool
 
 ```sh
 npm install          # 装 @deepseek-ai/{cordis,dsh-tools,schemastery}
-node --test          # 22 条单测
+node --test          # 含预设约束在内的单测
 ```
 
 单测覆盖：`get_test_plan_info` 的参数 schema、请求体与 URL、信封拆解（`code` 非 0、缺 `data`、
-HTTP 4xx/5xx）、`planId` 非空、Config 默认值与覆盖；以及章节目录、`blocks` 渲染（段落/小标题/
-列表/表格、空块与行列不齐的拒绝、09 章状态收敛、recommendation 前缀）、模版填充、
-`write_chapter` 的逐章累积、未写完不落盘、重新取数清空、落盘产物校验。
+HTTP 4xx/5xx）、`planId` 非空、Config 默认值与覆盖；章节目录与 `write_chapter` 的按序写入、
+乱序拒绝、空 content 拒绝、未写完不落盘、重新取数清空、content 原样落盘、按 session 隔离与 sidecar 续写；
+`get_test_plan_info` 把完整 JSON 写入 `dataDir`、工具结果不含 `data`；
+`read_static_doc` 的目录/分页/路径沙箱（含方案 JSON 与章节模版）；以及 `test-plan`
+预设不挂 coding 工具、`agent-presets` 默认指向该预设。
 
 ### 端到端
 
-不调用 LLM，用真实方案数据构造各章 blocks，验证「取数 → 渲染 → 套模版 → 落盘」整条链路：
+不调用 LLM，用真实方案数据构造各章 HTML，验证「取数落盘 → 分页读 JSON/模版 → 原样写入 → 落盘」：
 
 ```sh
 PLAN_ID="62324f55920065cf56a88b8e132e88c2" node e2e.mjs
 ```
 
-产出写在 `dsh-output/<planId>.html`，脚本最后会校验封面、05 目录、11 章标题与占位符已清空。
+产出写在 `dsh-output/<planId>.html`，方案 JSON 写在 `dsh-plan-data/<planId>.json`。
+脚本会校验取数未把完整 `data` 放进工具结果、可只读模版与 JSON，以及各章 content 按序原样落盘。
 
 ## 开发要点（写同类工具插件时的坑）
 

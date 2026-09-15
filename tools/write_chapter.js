@@ -1,8 +1,8 @@
 /**
- * write_chapter 工具：按模版写入一章，并累积到会话文档。
+ * write_chapter：按公文顺序写入一章，内容原样保存。
  *
- * 模型只交结构化 blocks，HTML 由 src/render.js 生成，模型无法注入 HTML。
- * 每写一章更新会话内的章节表；全部写完时把整份文档写为 HTML 文件。
+ * 章节写什么由模型根据当前模版与方案数据决定，本工具不改写、不校验正文。
+ * 必须按公文顺序一章接一章写；全部写完时把各章按顺序拼成一份 HTML。
  */
 
 import { mkdirSync, writeFileSync } from 'node:fs'
@@ -10,53 +10,46 @@ import { join } from 'node:path'
 
 import { defineTool } from '@deepseek-ai/dsh-tools'
 
-import { CHAPTERS, GENERATED_NOS, findChapter } from '../src/chapters.js'
-import { renderBlocks, fillTemplate, renderCatalogue } from '../src/render.js'
+import { CHAPTERS, DOCUMENT_ORDER, findChapter, nextChapter } from '../src/chapters.js'
+import { loadSessionState, saveState } from '../src/session-state.js'
 
-/** 正文块的 JSON schema（value schema DSL：必填写属性级 required，object 须声明 additionalProperties）。 */
-const blockSchema = {
-  type: 'object',
-  additionalProperties: false,
-  properties: {
-    kind: { type: 'string', required: true, enum: ['paragraph', 'heading', 'list', 'table'], description: '块类型。' },
-    text: { type: 'string', description: '段落/小标题文本，或表格前的说明。未用时填空串。' },
-    items: { type: 'array', items: { type: 'string' }, description: '列表项；kind=list 时必填，否则填空数组。' },
-    columns: { type: 'array', items: { type: 'string' }, description: '表头；kind=table 时必填，否则填空数组。' },
-    rows: {
-      type: 'array',
-      items: { type: 'array', items: { type: 'string' } },
-      description: '表格行；kind=table 时必填，每行列数须等于表头列数，否则填空数组。',
-    },
-    recommendation: { type: 'boolean', description: '该块是否为无原文支持的「建议待确认」内容。' },
-  },
+/** 章节编号列表，供工具说明。 */
+function chapterBrief() {
+  return CHAPTERS.map((c) => `${c.no} ${c.name}`).join(' → ')
 }
 
-/** 章节目录摘要，供模型了解可写哪些章及其要求。 */
-function chapterBrief() {
-  return CHAPTERS.map((c) => `${c.no} ${c.name}：${c.instructions}`).join('\n')
+/** 仅用于文档 <title>，不改章节正文。 */
+function escTitle(value) {
+  return String(value ?? '')
+    .replaceAll('&', '&amp;')
+    .replaceAll('<', '&lt;')
+    .replaceAll('>', '&gt;')
 }
 
 /**
- * 创建 write_chapter 工具。
+ * 注册 write_chapter。
  * @param ctx - 携带工具注册表的插件上下文。
- * @param config - 部署配置（outDir、tenantId 等）。
- * @param state - 会话内可变状态：chapters 记录已写章节，basic/points 来自方案数据。
+ * @param config - 部署配置（outDir、stateDir 等）。
  */
-export function registerWriteChapter(ctx, config, state) {
+export function registerWriteChapter(ctx, config) {
   ctx.tools.register(defineTool({
     name: 'write_chapter',
     description:
-      '按模版写入试验方案的某一章。只交结构化 blocks，不要写 HTML。'
-      + '封面（cover）与第 05 章由程序渲染，可用 write_chapter 传入 chapterNo="cover"/"05" 触发。'
-      + '章节要求：\n' + chapterBrief(),
+      '写入试验方案的下一章。content 为该章全文（通常是对照模版写成的 HTML），程序原样保存，不改写内容。'
+      + `必须按公文顺序逐章写入：${chapterBrief()}。不得跳章或乱序。`
+      + '写该章前用 read_static_doc 读对应模版（cover.html / 01.html …），以当前读到的模版为准。',
     parameters: {
       chapterNo: {
         type: 'string',
         required: true,
-        enum: ['cover', '05', ...GENERATED_NOS],
-        description: '章节编号；cover 为封面，05 为试验项目目录。',
+        enum: DOCUMENT_ORDER,
+        description: '章节编号，必须是当前尚未写入的下一章。',
       },
-      blocks: { type: 'array', items: blockSchema, required: true, description: '该章正文块，至少一块。' },
+      content: {
+        type: 'string',
+        required: true,
+        description: '该章全文。对照当前模版与方案数据生成，程序不修改。',
+      },
     },
     output: {
       schema: {
@@ -65,7 +58,8 @@ export function registerWriteChapter(ctx, config, state) {
         properties: {
           chapterNo: { type: 'string', required: true },
           done: { type: 'boolean', required: true, description: '全部章节是否已写完。' },
-          missing: { type: 'array', items: { type: 'string' }, required: true, description: '尚未写的章节编号。' },
+          next: { type: 'string', required: true, description: '下一章编号；全部写完时为空串。' },
+          missing: { type: 'array', items: { type: 'string' }, required: true, description: '尚未写的章节编号（公文顺序）。' },
           documentPath: { type: 'string', description: '已写完时输出的 HTML 文件路径，否则为空串。' },
         },
       },
@@ -73,62 +67,63 @@ export function registerWriteChapter(ctx, config, state) {
         type: 'text',
         text: value.done
           ? `已写完第 ${value.chapterNo} 章，全部章节完成，文档已写入 ${value.documentPath}`
-          : `已写入第 ${value.chapterNo} 章。未完成：${value.missing.join('、')}`,
+          : `已写入第 ${value.chapterNo} 章。下一章必须写 ${value.next}。未完成：${value.missing.join('、')}`,
       }],
     },
-    execute(args) {
-      const { chapterNo, blocks } = args
-      const chapter = chapterNo === 'cover' || chapterNo === '05' ? undefined : findChapter(chapterNo)
-      if (chapterNo !== 'cover' && chapterNo !== '05' && !chapter) {
+    execute(args, exec) {
+      const { sessionId, state } = loadSessionState(config.stateDir, exec)
+      if (!state.planId) {
+        throw new Error('请先调用 get_test_plan_info 获取方案数据')
+      }
+      const { chapterNo } = args
+      const content = typeof args.content === 'string' ? args.content : ''
+      if (content.trim().length === 0) {
+        throw new Error('content 不能为空')
+      }
+      const chapter = findChapter(chapterNo)
+      if (!chapter) {
         throw new Error(`未知章节: ${chapterNo}`)
       }
-      // 封面与 05 章由程序渲染，忽略模型给的 blocks，保证格式稳定。
-      let html
-      if (chapterNo === 'cover') {
-        html = fillTemplate('cover', renderBlocks(blocks, chapterNo))
-      } else if (chapterNo === '05') {
-        html = renderCatalogue(state.points)
-      } else {
-        html = fillTemplate(chapterNo, renderBlocks(blocks, chapterNo))
+      const expected = nextChapter(state.chapters)
+      if (!expected) {
+        throw new Error('全部章节已写完，请重新调用 get_test_plan_info 后再生成')
       }
-      state.chapters[chapterNo] = html
+      if (chapterNo !== expected) {
+        throw new Error(`须按公文顺序写入，下一章应为 ${expected}，收到 ${chapterNo}`)
+      }
+      state.chapters[chapterNo] = content
+      saveState(config.stateDir, sessionId, state)
 
-      const missing = wantedChapters().filter((no) => !state.chapters[no])
+      const missing = DOCUMENT_ORDER.filter((no) => !state.chapters[no])
       const done = missing.length === 0
+      const next = nextChapter(state.chapters) ?? ''
       let documentPath = ''
       if (done) {
         documentPath = writeDocument(config.outDir, state)
       }
-      return { chapterNo, done, missing, documentPath }
+      return { chapterNo, done, next, missing, documentPath }
     },
     presentCall: args => ({
       card: 'generic',
       title: `写入第 ${args.chapterNo} 章`,
       kind: 'other',
-      rawInput: args.blocks,
+      rawInput: args.content,
     }),
   }))
 }
 
-/** 需全部写完才算完成的章节：封面 + 05 + 其余各章。 */
-function wantedChapters() {
-  return ['cover', '05', ...GENERATED_NOS]
-}
-
 /** 把已写章节按公文顺序拼成一份 HTML 并落盘，返回文件路径。 */
 function writeDocument(outDir, state) {
-  // 延迟到真正写盘时建目录，避免插件加载期产生副作用。
   mkdirSync(outDir, { recursive: true })
-  const order = ['cover', '05', ...GENERATED_NOS]
   const title = state.basic?.planName ? `${state.basic.planName} 试验方案` : '试验方案'
   const safeName = state.planId.replace(/[^A-Za-z0-9_-]/g, '') || 'plan'
   const path = join(outDir, `${safeName}.html`)
   const html = [
     '<!DOCTYPE html>',
     '<html lang="zh-CN"><head><meta charset="utf-8">',
-    `<title>${title}</title>`,
+    `<title>${escTitle(title)}</title>`,
     '</head><body>',
-    order.map((no) => state.chapters[no]).filter(Boolean).join('\n'),
+    DOCUMENT_ORDER.map((no) => state.chapters[no]).filter(Boolean).join('\n'),
     '</body></html>',
   ].join('\n')
   writeFileSync(path, html, 'utf8')

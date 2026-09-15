@@ -14,3 +14,22 @@
         timeoutMs: 30000
         # 生成文档的输出目录；相对路径以 dsh 进程工作目录为基准。
         outDir: 'dsh-output'
+        # 静态参考文档根；空则使用插件自带 doc/。
+        docDir: ''
+        # get_test_plan_info 完整 JSON 落盘目录。
+        dataDir: 'dsh-plan-data'
+        # 按 session 隔离的写章进度 sidecar。
+        stateDir: 'dsh-plan-state'
+
+# Web 把 model-facing 工具挪到 agent preset。本层把默认预设改成 test-plan，
+# 扫描本包 presets/：不挂 bash/fs/web/subagent，只继承 host 上的两个试验方案工具。
+# patch 替换整份 config，因此把 schema 里会用到的键都写上。
+- id: agent-presets
+  config:
+    default: test-plan
+    includeShippedRoot: true
+    includeUserRoot: true
+    roots:
+      # profile 的 cordis.yml 目录是 ctx.baseUrl；插件经 dsh plugin add 后 link 在其 node_modules 下。
+      - path: !!js decodeURI(new URL('./node_modules/dsh-test-plan-tool/presets/', baseUrl).pathname)
+        trust: system

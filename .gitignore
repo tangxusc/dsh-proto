@@ -1,2 +1,7 @@
 node_modules/
 package-lock.json
+doc/
+dsh-plan-data/
+dsh-plan-state/
+dsh-output/
+dsh-output-test/

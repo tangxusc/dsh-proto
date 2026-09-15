@@ -1,0 +1,3 @@
+name: 试验方案
+description: 只保留取数落盘、只读分页查阅与按序写章，用于按 planId 生成试验方案文档。
+order: 0
