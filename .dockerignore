@@ -1,0 +1,11 @@
+.git
+.gitignore
+node_modules
+dsh-output
+dsh-plan-data
+dsh-plan-state
+dsh-output-test
+*.test.js
+e2e.mjs
+dist
+.DS_Store

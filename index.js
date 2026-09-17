@@ -69,4 +69,31 @@ export function apply(ctx, config) {
     { dir: docDir, kind: 'static', exts: ALLOWED_EXT },
     { dir: templateDir, kind: 'template', exts: TEMPLATE_EXT },
   ]))
+  // 内部网络无 token 访问：在 connection 就绪后 patch 掉浏览器 cookie 鉴权。
+  patchInternalAuth(ctx)
+}
+
+/**
+ * 让来自 loopback 或 trustedHosts 的请求无需浏览器 cookie/token 即可访问 /api。
+ *
+ * 实现方式：包装 `connection.requestRejection`；当它因缺失 cookie 返回 401 时直接放行。
+ * 403（Host/Origin 不信任）仍保留，因此不会把接口暴露给外网或跨站浏览器。
+ *
+ * 仅在真实 Cordis 上下文（有 ctx.inject）中生效；单测用的假 ctx不会走到这里。
+ *
+ * @param {import('@deepseek-ai/cordis').Context} ctx - 插件上下文。
+ */
+function patchInternalAuth(ctx) {
+  if (!ctx?.inject || typeof ctx.inject !== 'function') return
+  ctx.inject(['connection'], (connCtx) => {
+    const connection = connCtx.connection
+    if (!connection || typeof connection.requestRejection !== 'function') return
+    const original = connection.requestRejection.bind(connection)
+    connection.requestRejection = function (request) {
+      const rejection = original(request)
+      // 原逻辑已通过 Host/Origin 信任栅栏，只是没 cookie：对内部来源放行。
+      if (rejection === 401) return undefined
+      return rejection
+    }
+  })
 }

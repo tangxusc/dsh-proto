@@ -1,0 +1,9 @@
+# Docker 部署：CLI 禁止 --host 0.0.0.0，因此在 profile 层把 webserver 绑到所有网卡。
+# patch 替换整份 config，必须重述压缩相关键。端口仍跟 CLI --port / webStartup。
+- id: webserver
+  config:
+    host: 0.0.0.0
+    port: !!js ctx.webStartup.port ?? 3080
+    compression: gzip
+    compressionLevel: 1
+    compressionThresholdBytes: 1024

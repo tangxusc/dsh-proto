@@ -1,0 +1,18 @@
+ui-onboarding:
+  welcomeNoticeVersion: 2026-08-13.1
+ui-theme:
+  fontSize: 16
+agent-default-model:
+  provider: chengfei
+  model: DeepSeek-V4-Flash-0731
+llm-pi-ai:
+  providers:
+    chengfei:
+      displayName: chengfei
+      apiKeyEnv: CHENGFEI_API_KEY
+      api: openai-completions
+      baseURL: https://models.deepai.wiki/dsv4/v1
+      models:
+        - id: DeepSeek-V4-Flash-0731
+          name: DeepSeek-V4-Flash-0731
+          contextWindow: 128000

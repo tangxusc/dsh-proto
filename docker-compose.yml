@@ -1,0 +1,19 @@
+services:
+  dsh:
+    image: dsh-test-plan-tool:0.1.0
+    platform: linux/amd64
+    build:
+      context: .
+      dockerfile: Dockerfile
+      platforms:
+        - linux/amd64
+    ports:
+      - "3080:3080"
+    environment:
+      CHENGFEI_API_KEY: ${CHENGFEI_API_KEY:-}
+      TRUSTED_HOSTS: ${TRUSTED_HOSTS:-}
+      PORT: "3080"
+    volumes:
+      - ./dsh-output:/data/dsh-output
+      - ./dsh-plan-data:/data/dsh-plan-data
+      - ./dsh-plan-state:/data/dsh-plan-state

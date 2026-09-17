@@ -1,0 +1,17 @@
+{
+  "name": "dsh-profile-test-plan",
+  "private": true,
+  "dependencies": {
+    "dsh-test-plan-tool": "file:./node_modules/dsh-test-plan-tool"
+  },
+  "dsh": {
+    "profile": {
+      "bundles": [
+        "@deepseek-ai/dsh-base",
+        "@deepseek-ai/dsh-web-app",
+        "dsh-test-plan-tool"
+      ],
+      "patchReload": "live"
+    }
+  }
+}

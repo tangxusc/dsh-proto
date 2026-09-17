@@ -87,6 +87,22 @@ dsh-test-plan-tool/
 `read_static_doc` 读对应文件（`cover.html` / `01.html` …），按读到的内容组织该章全文，
 交给 `write_chapter` 的 `content`。程序不读取模版做填充，也不规定各章必须写什么。
 
+## 内部服务无 Token 调用 /api
+
+默认 Web UI 需要浏览器 cookie 鉴权。本插件在 `apply()` 时自动 patch `connection.requestRejection`：
+
+- 对 `loopback`（`127.0.0.1`）来源，或你通过 `--trusted-host` / `TRUSTED_HOSTS` 声明的内部来源，直接放行 401，**无需传任何 token**。
+- `403`（Host/Origin 不信任、跨站）仍拒绝，不会把接口暴露给外网。
+
+因此 Java/Python 等内部服务调用时：
+
+1. 确保 dsh 监听地址对内部网络可达（Docker 默认已在 `docker/profile/cordis.patch.yml` 把 webserver 绑到 `0.0.0.0`）。
+2. 把服务所在主机/容器地址或域名加到 `TRUSTED_HOSTS`：
+   - 本机直连：不需要额外配置，`127.0.0.1` 已放行。
+   - Docker 跨容器/宿主机调用：在 `docker-compose.yml` 的 `TRUSTED_HOSTS` 里加来源 hostname，例如 `TRUSTED_HOSTS=host.docker.internal`，并保证请求 `Host` 头与该值一致。
+
+> ⚠️ 该 patch 的生效前提是请求已经通过 `dsh-client-connection` 的 Host/Origin 信任栅栏；它不是把接口完全公开给互联网。若部署在不可信网络，请改用固定 token 或 VPN，不要依赖此 patch。
+
 ## 安装
 
 `dsh` 通常没有全局安装，用 `npx` 调用即可：
