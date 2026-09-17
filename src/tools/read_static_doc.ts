@@ -5,6 +5,7 @@
  * .md/.txt 走 docDir；.json 走 dataDir；.html 走章节模版目录（只参照，不渲染）。
  */
 
+import type { Context } from '@deepseek-ai/cordis'
 import { defineTool } from '@deepseek-ai/dsh-tools'
 
 import {
@@ -16,7 +17,7 @@ import {
   catalogBrief,
   listRoots,
   readFromRoots,
-} from '../src/static-docs.js'
+} from '../static-docs.ts'
 
 const emptyRead = {
   path: '',
@@ -36,7 +37,7 @@ const emptyRead = {
  * @param dataDir - get_test_plan_info 落盘目录。
  * @param templateDir - 章节模版目录（只读参照）。
  */
-export function registerReadStaticDoc(ctx, docDir, dataDir, templateDir) {
+export function registerReadStaticDoc(ctx: Context, docDir: string, dataDir: string, templateDir: string): void {
   const roots = [
     { dir: docDir, kind: 'static', exts: ALLOWED_EXT },
     { dir: dataDir, kind: 'plan', exts: PLAN_EXT },
@@ -107,7 +108,7 @@ export function registerReadStaticDoc(ctx, docDir, dataDir, templateDir) {
             + `\n${value.content}`,
       }],
     },
-    execute(args) {
+    async execute(args) {
       const path = typeof args.path === 'string' ? args.path.trim() : ''
       if (path.length === 0) {
         return { action: 'list', documents: listRoots(roots), ...emptyRead }

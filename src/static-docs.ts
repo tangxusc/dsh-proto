@@ -23,28 +23,62 @@ export const DEFAULT_PAGE_LINES = 80
 /** 单次读取行数上限，防止一次灌完整本。 */
 export const MAX_PAGE_LINES = 200
 
-/**
- * 插件自带的 doc 目录（与 src/ 同级）。
- * @returns 绝对路径。
- */
-export function bundledDocDir() {
-  return join(dirname(fileURLToPath(import.meta.url)), '..', 'doc')
+/** 目录里一篇可读文件的摘要，不含正文。 */
+export interface DocEntry {
+  path: string
+  title: string
+  lines: number
+  bytes: number
+  kind: string
+}
+
+/** 可读取的根：静态资料、取数落盘、章节模版。 */
+export interface ReadableRoot {
+  dir: string
+  kind: string
+  exts: Set<string>
+}
+
+/** 按行分页读取的一页。 */
+export interface DocPage {
+  path: string
+  offset: number
+  limit: number
+  totalLines: number
+  hasMore: boolean
+  nextOffset: number
+  content: string
 }
 
 /**
- * 插件自带的章节模版目录（templates/dynamic-v1，只给模型参照）。
- * @returns 绝对路径。
+ * 插件自带资源根目录（与 src/、lib/ 同级的 resources/）。
  */
-export function bundledTemplateDir() {
-  return join(dirname(fileURLToPath(import.meta.url)), '..', 'templates', 'dynamic-v1')
+function bundledResourcesDir(): string {
+  return join(dirname(fileURLToPath(import.meta.url)), '..', 'resources')
 }
 
 /**
- * 解析部署配置中的文档根目录。空值用自带 doc/；相对路径相对进程 cwd。
+ * 插件自带的 doc 目录（resources/doc，只给模型参照）。
+ * @returns 绝对路径。
+ */
+export function bundledDocDir(): string {
+  return join(bundledResourcesDir(), 'doc')
+}
+
+/**
+ * 插件自带的章节模版目录（resources/templates/dynamic-v1，只给模型参照）。
+ * @returns 绝对路径。
+ */
+export function bundledTemplateDir(): string {
+  return join(bundledResourcesDir(), 'templates', 'dynamic-v1')
+}
+
+/**
+ * 解析部署配置中的文档根目录。空值用自带 resources/doc；相对路径相对进程 cwd。
  * @param configured - config.docDir。
  * @returns 绝对路径（尚未要求目录一定存在）。
  */
-export function resolveDocDir(configured) {
+export function resolveDocDir(configured: string | undefined): string {
   const raw = typeof configured === 'string' ? configured.trim() : ''
   return raw ? resolve(raw) : bundledDocDir()
 }
@@ -54,7 +88,7 @@ export function resolveDocDir(configured) {
  * @param configured - config.dataDir。
  * @returns 绝对路径。
  */
-export function resolveDataDir(configured) {
+export function resolveDataDir(configured: string | undefined): string {
   const raw = typeof configured === 'string' ? configured.trim() : ''
   return resolve(raw || 'dsh-plan-data')
 }
@@ -64,7 +98,7 @@ export function resolveDataDir(configured) {
  * @param rootReal - 已经 realpath 的文档根。
  * @param candidate - 待检查的绝对路径。
  */
-function assertInside(rootReal, candidate) {
+function assertInside(rootReal: string, candidate: string): void {
   const rel = relative(rootReal, candidate)
   if (rel === '' || rel === '.') {
     throw new Error('只能读取 doc 目录内的文件，不能读取目录本身')
@@ -83,7 +117,7 @@ function assertInside(rootReal, candidate) {
  * @returns 文件真实路径。
  * @throws 路径为空、越权、不存在或类型不允许时。
  */
-export function resolveDocPath(docDir, relPath, allowedExt = ALLOWED_EXT) {
+export function resolveDocPath(docDir: string, relPath: unknown, allowedExt: Set<string> = ALLOWED_EXT): string {
   const name = String(relPath ?? '').trim()
   if (name.length === 0) {
     throw new Error('path 不能为空')
@@ -94,7 +128,7 @@ export function resolveDocPath(docDir, relPath, allowedExt = ALLOWED_EXT) {
   if (isAbsolute(name) || name.split(/[/\\]/).includes('..')) {
     throw new Error('只接受 doc 目录内的相对路径')
   }
-  let rootReal
+  let rootReal: string
   try {
     rootReal = realpathSync(docDir)
   } catch {
@@ -102,7 +136,7 @@ export function resolveDocPath(docDir, relPath, allowedExt = ALLOWED_EXT) {
   }
   const candidate = resolve(rootReal, name)
   assertInside(rootReal, candidate)
-  let fileReal
+  let fileReal: string
   try {
     fileReal = realpathSync(candidate)
   } catch {
@@ -120,7 +154,7 @@ export function resolveDocPath(docDir, relPath, allowedExt = ALLOWED_EXT) {
 }
 
 /** 取文中第一个标题：Markdown #，否则 HTML h1 去标签。 */
-function firstHeading(text) {
+function firstHeading(text: string): string {
   for (const line of text.split(/\r?\n/)) {
     const m = line.match(/^#{1,6}\s+(.+?)\s*$/)
     if (m) {
@@ -140,14 +174,14 @@ function firstHeading(text) {
  * @param allowedExt - 允许的扩展名；默认静态资料。
  * @returns 目录条目；根不存在时返回空数组。
  */
-export function listDocs(docDir, allowedExt = ALLOWED_EXT) {
-  let rootReal
+export function listDocs(docDir: string, allowedExt: Set<string> = ALLOWED_EXT): DocEntry[] {
+  let rootReal: string
   try {
     rootReal = realpathSync(docDir)
   } catch {
     return []
   }
-  const docs = []
+  const docs: DocEntry[] = []
   for (const entry of readdirSync(rootReal, { withFileTypes: true })) {
     if (!entry.isFile() || !allowedExt.has(extname(entry.name).toLowerCase())) {
       continue
@@ -159,10 +193,15 @@ export function listDocs(docDir, allowedExt = ALLOWED_EXT) {
       title: firstHeading(text) || entry.name,
       lines: lines.length,
       bytes: Buffer.byteLength(text, 'utf8'),
+      kind: '',
     })
   }
   docs.sort((a, b) => a.path.localeCompare(b.path, 'zh'))
   return docs
+}
+
+function toPageIndex(value: unknown, fallback: number): number {
+  return typeof value === 'number' && Number.isFinite(value) && value >= 1 ? Math.floor(value) : fallback
 }
 
 /**
@@ -174,11 +213,17 @@ export function listDocs(docDir, allowedExt = ALLOWED_EXT) {
  * @param allowedExt - 允许的扩展名；默认静态资料。
  * @returns 分页结果。
  */
-export function readDoc(docDir, relPath, offset, limit, allowedExt = ALLOWED_EXT) {
+export function readDoc(
+  docDir: string,
+  relPath: unknown,
+  offset?: unknown,
+  limit?: unknown,
+  allowedExt: Set<string> = ALLOWED_EXT,
+): DocPage {
   const abs = resolveDocPath(docDir, relPath, allowedExt)
   const lines = readFileSync(abs, 'utf8').split(/\r?\n/)
-  const start = Number.isFinite(offset) && offset >= 1 ? Math.floor(offset) : 1
-  const wanted = Number.isFinite(limit) && limit >= 1 ? Math.floor(limit) : DEFAULT_PAGE_LINES
+  const start = toPageIndex(offset, 1)
+  const wanted = toPageIndex(limit, DEFAULT_PAGE_LINES)
   const page = Math.min(wanted, MAX_PAGE_LINES)
   const slice = lines.slice(start - 1, start - 1 + page)
   const consumed = start - 1 + slice.length
@@ -195,7 +240,7 @@ export function readDoc(docDir, relPath, offset, limit, allowedExt = ALLOWED_EXT
 }
 
 /** 供提示词展示的目录摘要，不含正文。 */
-export function catalogBrief(documents) {
+export function catalogBrief(documents: readonly DocEntry[]): string {
   if (!documents.length) {
     return '（当前 doc 目录为空）'
   }
@@ -205,17 +250,12 @@ export function catalogBrief(documents) {
 }
 
 /**
- * 可读取的根：静态资料、取数落盘、章节模版。
- * @typedef {{ dir: string, kind: string, exts: Set<string> }} ReadableRoot
- */
-
-/**
  * 列出多个根下的可读文件。
  * @param roots - 根目录列表。
  * @returns 带 kind 的目录条目。
  */
-export function listRoots(roots) {
-  const docs = []
+export function listRoots(roots: readonly ReadableRoot[]): DocEntry[] {
+  const docs: DocEntry[] = []
   for (const root of roots) {
     for (const item of listDocs(root.dir, root.exts)) {
       docs.push({ ...item, kind: root.kind })
@@ -232,13 +272,18 @@ export function listRoots(roots) {
  * @param limit - 本页行数。
  * @returns 分页结果，含 kind。
  */
-export function readFromRoots(roots, relPath, offset, limit) {
+export function readFromRoots(
+  roots: readonly ReadableRoot[],
+  relPath: unknown,
+  offset?: unknown,
+  limit?: unknown,
+): DocPage & { kind: string } {
   const ext = extname(String(relPath ?? '').trim()).toLowerCase()
   const candidates = roots.filter((root) => root.exts.has(ext))
   if (candidates.length === 0) {
     throw new Error(`不支持的文件类型: ${ext || '(无扩展名)'}`)
   }
-  let last
+  let last: unknown
   for (const root of candidates) {
     try {
       return { kind: root.kind, ...readDoc(root.dir, relPath, offset, limit, root.exts) }
@@ -248,4 +293,3 @@ export function readFromRoots(roots, relPath, offset, limit) {
   }
   throw last
 }
-

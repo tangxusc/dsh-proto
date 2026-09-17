@@ -15,7 +15,7 @@ import {
   saveState,
   sessionIdOf,
   stateFileName,
-} from './src/session-state.js'
+} from '../src/session-state.ts'
 
 const DIR = join(tmpdir(), `dsh-plan-state-${process.pid}`)
 

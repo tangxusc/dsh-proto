@@ -1,6 +1,6 @@
 node_modules/
 package-lock.json
-doc/
+lib/
 dsh-plan-data/
 dsh-plan-state/
 dsh-output/

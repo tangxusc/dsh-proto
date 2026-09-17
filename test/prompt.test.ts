@@ -5,18 +5,26 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
 
-import { apply } from './index.js'
-import { CHAPTERS } from './src/chapters.js'
-import { buildPrompt, registerPrompt } from './src/prompt.js'
+import type { Context } from '@deepseek-ai/cordis'
+
+import { apply } from '../src/index.ts'
+import { CHAPTERS } from '../src/chapters.ts'
+import { buildPrompt, registerPrompt } from '../src/prompt.ts'
+
+interface PromptSection {
+  name: string
+  order: number
+  text: string
+}
 
 /** 捕获注册的提示词段。 */
-function captureSection() {
-  const sections = []
+function captureSection(): PromptSection[] {
+  const sections: PromptSection[] = []
   const ctx = {
     tools: { register: () => {} },
-    systemPrompt: { section: (s) => { sections.push(s) } },
+    systemPrompt: { section: (s: PromptSection) => { sections.push(s) } },
   }
-  apply(ctx, { tenantId: 1, url: 'http://x', timeoutMs: 1000, outDir: 'dsh-output-test' })
+  apply(ctx as unknown as Context, { tenantId: 1, url: 'http://x', timeoutMs: 1000, outDir: 'dsh-output-test', docDir: '', dataDir: 'dsh-plan-data', stateDir: 'dsh-plan-state' })
   return sections
 }
 
@@ -42,7 +50,7 @@ test('提示词串联两个工具：先取数、再逐章、最后落盘', () =>
 })
 
 test('提示词交代只读资料目录，不把正文写进提示词', () => {
-  const text = buildPrompt(CHAPTERS, [{ path: '业务术语解释.md', title: '术语', lines: 112, bytes: 1 }])
+  const text = buildPrompt(CHAPTERS, [{ path: '业务术语解释.md', title: '术语', lines: 112, bytes: 1, kind: 'static' }])
   assert.match(text, /read_static_doc/)
   assert.match(text, /业务术语解释\.md/)
   assert.match(text, /只读/)
@@ -81,7 +89,7 @@ test('提示词含全部章节编号（与目录一致）', () => {
 })
 
 test('registerPrompt 用假 ctx 不抛错', () => {
-  let captured
-  registerPrompt({ systemPrompt: { section: (s) => { captured = s } } }, CHAPTERS)
-  assert.equal(captured.name, 'tool:test-plan-doc')
+  let captured: PromptSection | undefined
+  registerPrompt({ systemPrompt: { section: (s: PromptSection) => { captured = s } } }, CHAPTERS)
+  assert.equal(captured?.name, 'tool:test-plan-doc')
 })

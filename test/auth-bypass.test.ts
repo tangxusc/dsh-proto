@@ -5,9 +5,10 @@
 
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { apply } from './index.js'
+import type { Context } from '@deepseek-ai/cordis'
+import { apply, type Config } from '../src/index.ts'
 
-const DEFAULTS = {
+const DEFAULTS: Config = {
   tenantId: 1,
   url: 'http://x',
   timeoutMs: 1000,
@@ -17,17 +18,21 @@ const DEFAULTS = {
   stateDir: 'dsh-plan-state-test',
 }
 
+interface ConnectionLike {
+  requestRejection: (request: unknown) => unknown
+}
+
 /** 构造一个带假 connection 的 Cordis-like 上下文。 */
-function makeCtx(rejectFn) {
-  const connection = { requestRejection: rejectFn }
+function makeCtx(rejectFn: (request: unknown) => unknown): Context & { connection: ConnectionLike } {
+  const connection: ConnectionLike = { requestRejection: rejectFn }
   return {
     tools: { register: () => {} },
     systemPrompt: { section: () => {} },
-    inject: (deps, callback) => {
+    inject: (deps: string[], callback: (c: { connection: ConnectionLike }) => void) => {
       if (deps.includes('connection')) callback({ connection })
     },
     connection,
-  }
+  } as unknown as Context & { connection: ConnectionLike }
 }
 
 test('内部来源缺 cookie 时放行（401 -> undefined）', () => {

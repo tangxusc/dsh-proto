@@ -5,7 +5,7 @@ dsh-output
 dsh-plan-data
 dsh-plan-state
 dsh-output-test
-*.test.js
-e2e.mjs
+test
+lib
 dist
 .DS_Store

@@ -14,7 +14,7 @@
         timeoutMs: 30000
         # 生成文档的输出目录；相对路径以 dsh 进程工作目录为基准。
         outDir: 'dsh-output'
-        # 静态参考文档根；空则使用插件自带 doc/。
+        # 静态参考文档根；空则使用插件自带 resources/doc。
         docDir: ''
         # get_test_plan_info 完整 JSON 落盘目录。
         dataDir: 'dsh-plan-data'

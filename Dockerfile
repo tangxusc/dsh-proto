@@ -25,14 +25,16 @@ RUN npm config set registry "$NPM_REGISTRY" \
     && npm install --omit=dev --no-audit --no-fund \
     && npm cache clean --force
 
-# 插件源码（不含 darwin 的 node_modules）
+# 插件 TypeScript 源码在镜像内编译成 lib/（不含宿主 node_modules）
 WORKDIR /opt/plugin
-COPY package.json cordis.patch.yml index.js ./
-COPY tools/ ./tools/
+COPY package.json tsconfig.json cordis.patch.yml ./
 COPY src/ ./src/
-COPY templates/ ./templates/
+COPY resources/ ./resources/
 COPY presets/ ./presets/
-COPY doc/ ./doc/
+RUN npm config set registry "$NPM_REGISTRY" \
+    && NODE_ENV=development npm install --no-audit --no-fund \
+    && npm run build \
+    && rm -rf node_modules
 
 # 预置 DSH_HOME：profile + 模型配置。不写入 API Key。
 COPY docker/settings.yaml /opt/dsh-home/settings.yaml

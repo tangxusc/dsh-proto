@@ -8,11 +8,11 @@ import { fileURLToPath } from 'node:url'
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
 
-const root = dirname(fileURLToPath(import.meta.url))
+const root = join(dirname(fileURLToPath(import.meta.url)), '..')
 const presetDir = join(root, 'presets', 'test-plan')
 
 /** 读仓库内文本文件。 */
-function read(rel) {
+function read(rel: string): string {
   return readFileSync(join(root, rel), 'utf8')
 }
 

@@ -1,11 +1,17 @@
 /**
  * 试验方案章节目录：编号与名称，只用于公文顺序。
  *
- * 各章写什么以 templates/dynamic-v1 当前文件为准，目录不规定章节内容。
+ * 各章写什么以 resources/templates/dynamic-v1 当前文件为准，目录不规定章节内容。
  */
 
+/** 一章的编号与显示名。 */
+export interface Chapter {
+  readonly no: string
+  readonly name: string
+}
+
 /** 全部章节，按公文顺序（封面 → 01…11）。 */
-export const CHAPTERS = [
+export const CHAPTERS: readonly Chapter[] = [
   { no: 'cover', name: '封面' },
   { no: '01', name: '范围' },
   { no: '02', name: '规范性引用文件' },
@@ -21,10 +27,10 @@ export const CHAPTERS = [
 ]
 
 /** 公文顺序下的章节编号，写章与落盘都按此顺序，不得乱序。 */
-export const DOCUMENT_ORDER = CHAPTERS.map((c) => c.no)
+export const DOCUMENT_ORDER: readonly string[] = CHAPTERS.map((c) => c.no)
 
 /** 按编号取章节定义；未知编号返回 undefined。 */
-export function findChapter(no) {
+export function findChapter(no: string): Chapter | undefined {
   return CHAPTERS.find((c) => c.no === no)
 }
 
@@ -33,6 +39,6 @@ export function findChapter(no) {
  * @param written - 已写章节表（key 为章节编号）。
  * @returns 下一章编号；全部写完时返回 undefined。
  */
-export function nextChapter(written) {
+export function nextChapter(written: Record<string, unknown>): string | undefined {
   return DOCUMENT_ORDER.find((no) => !written[no])
 }

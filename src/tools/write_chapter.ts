@@ -8,18 +8,25 @@
 import { mkdirSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 
+import type { Context } from '@deepseek-ai/cordis'
 import { defineTool } from '@deepseek-ai/dsh-tools'
 
-import { CHAPTERS, DOCUMENT_ORDER, findChapter, nextChapter } from '../src/chapters.js'
-import { loadSessionState, saveState } from '../src/session-state.js'
+import { CHAPTERS, DOCUMENT_ORDER, findChapter, nextChapter } from '../chapters.ts'
+import { loadSessionState, saveState, type PlanSessionState } from '../session-state.ts'
+
+/** 写章工具需要的部署配置子集。 */
+export interface WriteChapterConfig {
+  outDir: string
+  stateDir: string
+}
 
 /** 章节编号列表，供工具说明。 */
-function chapterBrief() {
+function chapterBrief(): string {
   return CHAPTERS.map((c) => `${c.no} ${c.name}`).join(' → ')
 }
 
 /** 仅用于文档 <title>，不改章节正文。 */
-function escTitle(value) {
+function escTitle(value: unknown): string {
   return String(value ?? '')
     .replaceAll('&', '&amp;')
     .replaceAll('<', '&lt;')
@@ -31,7 +38,7 @@ function escTitle(value) {
  * @param ctx - 携带工具注册表的插件上下文。
  * @param config - 部署配置（outDir、stateDir 等）。
  */
-export function registerWriteChapter(ctx, config) {
+export function registerWriteChapter(ctx: Context, config: WriteChapterConfig): void {
   ctx.tools.register(defineTool({
     name: 'write_chapter',
     description:
@@ -70,7 +77,7 @@ export function registerWriteChapter(ctx, config) {
           : `已写入第 ${value.chapterNo} 章。下一章必须写 ${value.next}。未完成：${value.missing.join('、')}`,
       }],
     },
-    execute(args, exec) {
+    async execute(args, exec) {
       const { sessionId, state } = loadSessionState(config.stateDir, exec)
       if (!state.planId) {
         throw new Error('请先调用 get_test_plan_info 获取方案数据')
@@ -113,9 +120,10 @@ export function registerWriteChapter(ctx, config) {
 }
 
 /** 把已写章节按公文顺序拼成一份 HTML 并落盘，返回文件路径。 */
-function writeDocument(outDir, state) {
+function writeDocument(outDir: string, state: PlanSessionState): string {
   mkdirSync(outDir, { recursive: true })
-  const title = state.basic?.planName ? `${state.basic.planName} 试验方案` : '试验方案'
+  const planName = typeof state.basic?.planName === 'string' ? state.basic.planName : ''
+  const title = planName ? `${planName} 试验方案` : '试验方案'
   const safeName = state.planId.replace(/[^A-Za-z0-9_-]/g, '') || 'plan'
   const path = join(outDir, `${safeName}.html`)
   const html = [

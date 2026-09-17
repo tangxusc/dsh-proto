@@ -8,9 +8,27 @@
 import { mkdirSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 
+import type { Context } from '@deepseek-ai/cordis'
 import { defineTool } from '@deepseek-ai/dsh-tools'
 
-import { sessionIdOf, saveState } from '../src/session-state.js'
+import { sessionIdOf, saveState } from '../session-state.ts'
+
+/** 取数工具需要的部署配置子集。 */
+export interface GetPlanConfig {
+  tenantId: number
+  url: string
+  timeoutMs: number
+  dataDir: string
+  stateDir: string
+}
+
+/** 方案身份摘要。 */
+interface PlanIdentity {
+  planName: string
+  planNo: string
+  productModelName: string
+  targetName: string
+}
 
 /**
  * 从接口响应信封中取出业务数据。后端约定 code=0 为成功，data 为载荷。
@@ -18,19 +36,20 @@ import { sessionIdOf, saveState } from '../src/session-state.js'
  * @returns 业务数据对象。
  * @throws 当响应不是对象、code 非 0、或缺少 data 时。
  */
-function unwrap(payload) {
+function unwrap(payload: unknown): Record<string, unknown> {
   if (typeof payload !== 'object' || payload === null || Array.isArray(payload)) {
     throw new Error('试验方案接口返回的不是对象')
   }
-  if (payload.code !== 0 && payload.code != null) {
-    throw new Error(String(payload.msg ?? `试验方案接口 code=${payload.code}`))
+  const envelope = payload as Record<string, unknown>
+  if (envelope.code !== 0 && envelope.code != null) {
+    throw new Error(String(envelope.msg ?? `试验方案接口 code=${envelope.code}`))
   }
   // 明确要求信封带 data：回退到整个信封会把 {code,msg} 当成方案数据喂给模型，属错误。
-  const data = payload.data
+  const data = envelope.data
   if (typeof data !== 'object' || data === null) {
     throw new Error('试验方案接口缺少 data')
   }
-  return data
+  return data as Record<string, unknown>
 }
 
 /**
@@ -38,14 +57,21 @@ function unwrap(payload) {
  * @param data - 接口返回的方案数据。
  * @returns 功能点名称数组；无 functionInfo 时返回空数组。
  */
-function adoptedPoints(data) {
-  const infos = data?.functionInfo?.functionPoints
+function adoptedPoints(data: Record<string, unknown>): string[] {
+  const functionInfo = data.functionInfo
+  if (typeof functionInfo !== 'object' || functionInfo === null) {
+    return []
+  }
+  const infos = (functionInfo as { functionPoints?: unknown }).functionPoints
   if (!Array.isArray(infos)) {
     return []
   }
   return infos
-    .filter((p) => (p.adoptionStatus ?? 'adopted') === 'adopted')
-    .map((p) => String(p.pointName ?? '').trim())
+    .filter((p) => {
+      if (typeof p !== 'object' || p === null) return false
+      return ((p as { adoptionStatus?: unknown }).adoptionStatus ?? 'adopted') === 'adopted'
+    })
+    .map((p) => String((p as { pointName?: unknown }).pointName ?? '').trim())
     .filter(Boolean)
 }
 
@@ -54,7 +80,7 @@ function adoptedPoints(data) {
  * @param planId - 方案 id。
  * @returns 仅含字母数字下划线与短横线的名字。
  */
-export function safePlanFileName(planId) {
+export function safePlanFileName(planId: string): string {
   return `${String(planId).replace(/[^A-Za-z0-9_-]/g, '') || 'plan'}.json`
 }
 
@@ -65,7 +91,12 @@ export function safePlanFileName(planId) {
  * @param data - 接口 data 载荷。
  * @returns 相对路径、绝对路径、行数与字节数。
  */
-export function writePlanFile(dataDir, planId, data) {
+export function writePlanFile(dataDir: string, planId: string, data: unknown): {
+  path: string
+  filePath: string
+  lines: number
+  bytes: number
+} {
   mkdirSync(dataDir, { recursive: true })
   const path = safePlanFileName(planId)
   const filePath = join(dataDir, path)
@@ -80,15 +111,16 @@ export function writePlanFile(dataDir, planId, data) {
 }
 
 /** 封面等只需要的身份字段，避免把整个 basicInfo 再塞进工具结果。 */
-function identity(basic) {
+function identity(basic: unknown): PlanIdentity {
   if (typeof basic !== 'object' || basic === null) {
     return { planName: '', planNo: '', productModelName: '', targetName: '' }
   }
+  const rec = basic as Record<string, unknown>
   return {
-    planName: String(basic.planName ?? ''),
-    planNo: String(basic.planNo ?? ''),
-    productModelName: String(basic.productModelName ?? ''),
-    targetName: String(basic.targetName ?? ''),
+    planName: String(rec.planName ?? ''),
+    planNo: String(rec.planNo ?? ''),
+    productModelName: String(rec.productModelName ?? ''),
+    targetName: String(rec.targetName ?? ''),
   }
 }
 
@@ -97,7 +129,7 @@ function identity(basic) {
  * @param ctx - 携带工具注册表的插件上下文。
  * @param config - 部署配置（tenantId、url、timeoutMs、dataDir、stateDir）。
  */
-export function registerGetTestPlanInfo(ctx, config) {
+export function registerGetTestPlanInfo(ctx: Context, config: GetPlanConfig): void {
   ctx.tools.register(defineTool({
     name: 'get_test_plan_info',
     description:
@@ -150,7 +182,7 @@ export function registerGetTestPlanInfo(ctx, config) {
       const signal = exec.signal
         ? AbortSignal.any([exec.signal, AbortSignal.timeout(config.timeoutMs)])
         : AbortSignal.timeout(config.timeoutMs)
-      let response
+      let response: Response
       try {
         response = await fetch(config.url, {
           method: 'POST',
@@ -169,9 +201,12 @@ export function registerGetTestPlanInfo(ctx, config) {
       const points = adoptedPoints(data)
       const saved = writePlanFile(config.dataDir, planId, data)
       const sessionId = sessionIdOf(exec)
+      const basic = data.basicInfo
       saveState(config.stateDir, sessionId, {
         planId,
-        basic: data.basicInfo ?? null,
+        basic: typeof basic === 'object' && basic !== null && !Array.isArray(basic)
+          ? basic as Record<string, unknown>
+          : null,
         points,
         chapters: {},
         planFile: saved.path,

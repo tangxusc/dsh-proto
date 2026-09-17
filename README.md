@@ -5,7 +5,7 @@ DeepSeek Harness（`dsh`）插件：提供三个 model-facing 工具，完成「
 | 工具 | 作用 |
 | --- | --- |
 | `get_test_plan_info` | 按 `planId` 取数，完整 JSON 写入 `dataDir`，工具结果只回摘要与路径 |
-| `read_static_doc` | 只读查阅 `doc/` 静态资料、`templates/dynamic-v1/` 章节模版与 `dataDir` 中的方案 JSON |
+| `read_static_doc` | 只读查阅 `resources/doc/` 静态资料、`resources/templates/dynamic-v1/` 章节模版与 `dataDir` 中的方案 JSON |
 | `write_chapter` | 按公文顺序写入各章全文（`content` 原样保存）；全部写完落盘为一份 HTML |
 
 这是一个**组合包（bundle）**：`package.json` 声明 `dsh.bundle`，配 `cordis.patch.yml` 提供一层
@@ -43,7 +43,7 @@ patch，通过 `dsh plugin` 安装进 profile。下文命令中的 `<profile>` �
 
 ### `read_static_doc`
 
-静态参考资料放在插件的 `doc/`（可用 `docDir` 覆盖），章节模版在 `templates/dynamic-v1/`，
+静态参考资料放在插件的 `resources/doc/`（可用 `docDir` 覆盖），章节模版在 `resources/templates/dynamic-v1/`，
 取数 JSON 放在 `dataDir`（默认 `dsh-plan-data/`），**都不写入系统提示全文**。
 `.md`/`.txt` 走静态目录，`.html` 走模版目录，`.json` 走取数目录。
 
@@ -61,29 +61,27 @@ patch，通过 `dsh plugin` 安装进 profile。下文命令中的 `<profile>` �
 
 ```
 dsh-test-plan-tool/
-├── package.json          # 声明 dsh.bundle，指向下面的 patch 层
+├── package.json          # 声明 dsh.bundle，指向下面的 patch 层；main 为 lib/index.js
+├── tsconfig.json         # 源码编译到 lib/（与官方 DSH 包布局一致）
 ├── cordis.patch.yml      # 组合包层：插入插件行、默认配置，并把 Web 默认预设改成 test-plan
-├── index.js              # 插件入口：Config、注册工具与提示词
-├── src/chapters.js       # 章节目录与公文顺序（cover → 01–11）
-├── src/session-state.js  # 按 session 读写写章进度 sidecar
-├── src/prompt.js         # 取数落盘 → 读当前模版与方案数据 → 按序写章
-├── src/static-docs.js    # 静态文档、章节模版与取数 JSON 的目录、分页读取与路径沙箱
-├── tools/get_test_plan_info.js  # get_test_plan_info 工具
-├── tools/read_static_doc.js     # read_static_doc 工具（只读）
-├── tools/write_chapter.js       # write_chapter 工具
-├── templates/dynamic-v1/ # 12 个章节模版（cover + 01–11），以当前文件为准，程序不渲染
-├── doc/                  # 静态参考资料（只读，模型按需分页读取）
+├── src/index.ts          # 插件入口：Config、注册工具与提示词
+├── src/chapters.ts       # 章节目录与公文顺序（cover → 01–11）
+├── src/session-state.ts  # 按 session 读写写章进度 sidecar
+├── src/prompt.ts         # 取数落盘 → 读当前模版与方案数据 → 按序写章
+├── src/static-docs.ts    # 静态文档、章节模版与取数 JSON 的目录、分页读取与路径沙箱
+├── src/tools/get_test_plan_info.ts  # get_test_plan_info 工具
+├── src/tools/read_static_doc.ts     # read_static_doc 工具（只读）
+├── src/tools/write_chapter.ts       # write_chapter 工具
+├── resources/doc/            # 静态参考资料（只读，模型按需分页读取）
+├── resources/templates/dynamic-v1/  # 12 个章节模版（cover + 01–11），以当前文件为准，程序不渲染
 ├── presets/test-plan/    # Web agent 预设：不挂 bash/fs/web，只继承本插件工具
-├── index.test.js         # get_test_plan_info 单测
-├── chapters.test.js      # 章节顺序与 write_chapter 单测
-├── presets.test.js       # 预设文件与 patch 约束
-├── e2e.mjs               # 端到端：真实取数 + 逐章生成 + 落盘
+├── test/                 # 单测与 e2e（不参与插件发布）
 └── README.md
 ```
 
 ## 章节模版
 
-`templates/dynamic-v1/<章节>.html` 是各章的当前模版，**会更新**。模型写某一章前用
+`resources/templates/dynamic-v1/<章节>.html` 是各章的当前模版，**会更新**。模型写某一章前用
 `read_static_doc` 读对应文件（`cover.html` / `01.html` …），按读到的内容组织该章全文，
 交给 `write_chapter` 的 `content`。程序不读取模版做填充，也不规定各章必须写什么。
 
@@ -130,6 +128,7 @@ npm config set registry https://registry.npmjs.org
 
 ```sh
 cd <repo>
+npm install    # 编译 src/ → lib/；dsh 加载的是 lib/index.js
 $DSH plugin --profile <profile> add ./dsh-test-plan-tool
 ```
 
@@ -223,7 +222,7 @@ $DSH --profile <profile> --dump-config | grep -A 12 'id: agent-presets'
     url: 'http://other-host/admin-api/third/protocol/test-plan/getAiTestPlanData'
     timeoutMs: 60000
     outDir: '/data/plan-docs'                      # 覆盖默认 dsh-output
-    docDir: '/data/plan-static-docs'               # 覆盖默认插件自带 doc/
+    docDir: '/data/plan-static-docs'               # 覆盖默认插件自带 resources/doc
     dataDir: '/data/plan-json'                     # 覆盖默认 dsh-plan-data
     stateDir: '/data/plan-state'                    # 覆盖默认 dsh-plan-state
 ```
@@ -234,7 +233,7 @@ $DSH --profile <profile> --dump-config | grep -A 12 'id: agent-presets'
 | `url` | string | 55 环境 admin-api 地址 | 试验方案数据接口 |
 | `timeoutMs` | number | `30000` | 请求超时；与调用方的取消信号取其一 |
 | `outDir` | string | `dsh-output` | 生成文档的输出目录；相对路径以 dsh 进程工作目录为基准 |
-| `docDir` | string | 空（使用插件 `doc/`） | 静态参考文档根目录；相对路径以进程工作目录为基准 |
+| `docDir` | string | 空（使用插件 `resources/doc/`） | 静态参考文档根目录；相对路径以进程工作目录为基准 |
 | `dataDir` | string | `dsh-plan-data` | `get_test_plan_info` 完整 JSON 落盘目录 |
 | `stateDir` | string | `dsh-plan-state` | 按 session 隔离的写章进度 sidecar |
 
@@ -290,8 +289,8 @@ $DSH --profile <profile> --dump-config | grep -A 12 'id: agent-presets'
 ## 本地验证
 
 ```sh
-npm install          # 装 @deepseek-ai/{cordis,dsh-tools,schemastery}
-node --test          # 含预设约束在内的单测
+npm install          # 装依赖并 `tsc` 编译到 lib/（package.json 的 prepare）
+npm test             # 类型检查 + 含预设约束在内的单测
 ```
 
 单测覆盖：`get_test_plan_info` 的参数 schema、请求体与 URL、信封拆解（`code` 非 0、缺 `data`、
@@ -306,7 +305,7 @@ HTTP 4xx/5xx）、`planId` 非空、Config 默认值与覆盖；章节目录与 
 不调用 LLM，用真实方案数据构造各章 HTML，验证「取数落盘 → 分页读 JSON/模版 → 原样写入 → 落盘」：
 
 ```sh
-PLAN_ID="62324f55920065cf56a88b8e132e88c2" node e2e.mjs
+PLAN_ID="62324f55920065cf56a88b8e132e88c2" npm run e2e
 ```
 
 产出写在 `dsh-output/<planId>.html`，方案 JSON 写在 `dsh-plan-data/<planId>.json`。
@@ -335,8 +334,10 @@ PLAN_ID="62324f55920065cf56a88b8e132e88c2" node e2e.mjs
 必须写真实版本：`@deepseek-ai/cordis@^4.0.2`、`@deepseek-ai/dsh-tools@^0.1.5-rc.2`。
 照抄 `workspace:^` 在 `npm install` 时会解析失败。
 
-### 纯 JS 包不要写 TS 语法
+### 源码是 TypeScript，运行时加载编译产物
 
-选了纯 JS 组合包（免构建）时，`.js` 里不能出现 `interface` / 类型注解——会 `SyntaxError`。
-类型信息用 JSDoc 表达。
+本组合包按官方 DSH 包布局：源码在 `src/**/*.ts`，相对导入带 `.ts` 后缀，`tsc` 编译到 `lib/`。
+`package.json` 的 `main` 指向 `lib/index.js`，`dsh plugin add` 加载的是编译后的 JS，不是 `.ts`。
+改源码后需要重新 `npm run build`（`npm install` 的 `prepare` 也会编译）。
+官方教程里直接指向 `.ts` 文件，那是在 Harness 仓库内用它自己的 TS 加载器；树外包要先编译。
 

@@ -10,40 +10,44 @@ import { fileURLToPath } from 'node:url'
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
 
-import { apply, Config } from './index.js'
+import type { Context } from '@deepseek-ai/cordis'
+import type { ToolDefinition, ToolRunContext } from '@deepseek-ai/dsh-tools'
+
+import { apply, Config, type Config as PluginConfig } from '../src/index.ts'
 
 const DATA = join(tmpdir(), `dsh-plan-data-${process.pid}`)
 const STATE = join(tmpdir(), `dsh-plan-state-${process.pid}`)
-const defaults = { outDir: 'dsh-output-test', dataDir: DATA, stateDir: STATE }
-const EXEC = { agent: { id: 'sess-index' } }
+const defaults: Partial<PluginConfig> = { outDir: 'dsh-output-test', dataDir: DATA, stateDir: STATE }
+const EXEC = { agent: { id: 'sess-index' } } as ToolRunContext
+
+function asCtx(value: object): Context {
+  return value as Context
+}
 
 /** 用假 ctx 捕获全部注册的工具，按名字取用。传入 config 覆盖默认值。 */
-function captureAll(config) {
-  const tools = new Map()
+function captureAll(config: Partial<PluginConfig>): Map<string, ToolDefinition> {
+  const tools = new Map<string, ToolDefinition>()
   const ctx = {
-    tools: { register: (tool) => { tools.set(tool.name, tool) } },
+    tools: { register: (tool: ToolDefinition) => { tools.set(tool.name, tool) } },
     systemPrompt: { section: () => {} },
   }
-  apply(ctx, { ...defaults, ...config })
+  apply(asCtx(ctx), { tenantId: 1, url: 'http://x', timeoutMs: 1000, docDir: '', ...defaults, ...config } as PluginConfig)
   return tools
 }
 
 /** 取 get_test_plan_info 工具定义。 */
-function capture(config) {
+function capture(config: Partial<PluginConfig>): ToolDefinition {
   const tool = captureAll(config).get('get_test_plan_info')
   assert.ok(tool, '未注册 get_test_plan_info')
   return tool
 }
 
 /** 假 fetch：记录调用参数，返回指定 JSON 与状态码。 */
-function fakeFetch(payload, status = 200) {
-  const calls = []
-  const impl = async (url, init) => {
-    calls.push({ url, init })
-    return {
-      status,
-      json: async () => payload,
-    }
+function fakeFetch(payload: unknown, status = 200) {
+  const calls: { url: string; init?: RequestInit }[] = []
+  const impl: typeof fetch = async (url, init) => {
+    calls.push({ url: String(url), init })
+    return { status, json: async () => payload } as Response
   }
   return { impl, calls }
 }
@@ -51,16 +55,16 @@ function fakeFetch(payload, status = 200) {
 test('注册恰好三个工具，且各有独立文件', () => {
   const tools = captureAll({ tenantId: 1, url: 'http://x', timeoutMs: 1000 })
   assert.deepEqual([...tools.keys()].sort(), ['get_test_plan_info', 'read_static_doc', 'write_chapter'])
-  const dir = dirname(fileURLToPath(import.meta.url))
-  assert.ok(existsSync(join(dir, 'tools', 'get_test_plan_info.js')))
-  assert.ok(existsSync(join(dir, 'tools', 'read_static_doc.js')))
-  assert.ok(existsSync(join(dir, 'tools', 'write_chapter.js')))
+  const root = join(dirname(fileURLToPath(import.meta.url)), '..')
+  assert.ok(existsSync(join(root, 'src', 'tools', 'get_test_plan_info.ts')))
+  assert.ok(existsSync(join(root, 'src', 'tools', 'read_static_doc.ts')))
+  assert.ok(existsSync(join(root, 'src', 'tools', 'write_chapter.ts')))
 })
 
 test('注册的工具名与参数 schema 符合约定', () => {
   const tool = capture({ tenantId: 1, url: 'http://x', timeoutMs: 1000 })
   assert.equal(tool.name, 'get_test_plan_info')
-  assert.equal(tool.parameters.properties.planId.type, 'string')
+  assert.equal((tool.parameters.properties as { planId: { type: string } }).planId.type, 'string')
   // 必填在编译后的 JSON Schema 中体现为 required 数组。
   assert.deepEqual(tool.parameters.required, ['planId'])
 })
@@ -72,12 +76,12 @@ test('execute 用配置的 tenantId 与 url 发起 POST，完整数据落盘不�
   const seen = fakeFetch({ code: 0, data: payload })
   globalThis.fetch = seen.impl
 
-  const value = await tool.execute({ planId: 'p1' }, EXEC)
+  const value = await tool.execute({ planId: 'p1' }, EXEC) as Record<string, unknown>
 
   assert.equal(seen.calls.length, 1)
   assert.equal(seen.calls[0].url, 'http://example/plan')
-  assert.equal(seen.calls[0].init.method, 'POST')
-  assert.deepEqual(JSON.parse(seen.calls[0].init.body), { tenantId: 7, planId: 'p1' })
+  assert.equal(seen.calls[0].init?.method, 'POST')
+  assert.deepEqual(JSON.parse(String(seen.calls[0].init?.body)), { tenantId: 7, planId: 'p1' })
   assert.equal(value.planId, 'p1')
   assert.equal(value.tenantId, 7)
   assert.equal(value.path, 'p1.json')
@@ -85,10 +89,10 @@ test('execute 用配置的 tenantId 与 url 发起 POST，完整数据落盘不�
   assert.deepEqual(value.topKeys, ['basicInfo', 'extra'])
   assert.deepEqual(value.basic, { planName: 'X', planNo: 'N1', productModelName: 'M', targetName: 'T' })
   assert.deepEqual(value.adoptedPoints, [])
-  assert.ok(existsSync(value.filePath))
-  assert.deepEqual(JSON.parse(readFileSync(value.filePath, 'utf8')), payload)
-  assert.ok(value.lines > 1)
-  assert.ok(value.bytes > 0)
+  assert.ok(existsSync(String(value.filePath)))
+  assert.deepEqual(JSON.parse(readFileSync(String(value.filePath), 'utf8')), payload)
+  assert.ok(Number(value.lines) > 1)
+  assert.ok(Number(value.bytes) > 0)
   rmSync(DATA, { recursive: true, force: true })
   rmSync(STATE, { recursive: true, force: true })
 })
@@ -100,10 +104,14 @@ test('落盘文件可用 read_static_doc 分页读取', async () => {
     code: 0,
     data: { basicInfo: { planName: '航电' }, functionInfo: { functionPoints: [{ pointName: '通电检查', adoptionStatus: 'adopted' }] } },
   }).impl
-  const got = await tools.get('get_test_plan_info').execute({ planId: 'p-read' }, EXEC)
-  const listed = await tools.get('read_static_doc').execute({}, {})
+  const got = await tools.get('get_test_plan_info')!.execute({ planId: 'p-read' }, EXEC) as { path: string }
+  const listed = await tools.get('read_static_doc')!.execute({}, {} as ToolRunContext) as { documents: { path: string; kind: string }[] }
   assert.ok(listed.documents.some((d) => d.path === got.path && d.kind === 'plan'))
-  const page = await tools.get('read_static_doc').execute({ path: got.path, offset: 1, limit: 8 }, {})
+  const page = await tools.get('read_static_doc')!.execute({ path: got.path, offset: 1, limit: 8 }, {} as ToolRunContext) as {
+    action: string
+    kind: string
+    content: string
+  }
   assert.equal(page.action, 'read')
   assert.equal(page.kind, 'plan')
   assert.match(page.content, /"planName": "航电"/)
@@ -116,31 +124,31 @@ test('取数成功但缺少 session 时拒绝写进度', async () => {
   rmSync(DATA, { recursive: true, force: true })
   const tool = capture({ tenantId: 1, url: 'http://x', timeoutMs: 1000 })
   globalThis.fetch = fakeFetch({ code: 0, data: { basicInfo: { planName: 'X' } } }).impl
-  await assert.rejects(() => tool.execute({ planId: 'p1' }, {}), /缺少会话/)
+  await assert.rejects(() => tool.execute({ planId: 'p1' }, {} as ToolRunContext), /缺少会话/)
   rmSync(DATA, { recursive: true, force: true })
 })
 
 test('响应缺少 data 时抛出，不回退成整个信封', async () => {
   const tool = capture({ tenantId: 1, url: 'http://x', timeoutMs: 1000 })
   globalThis.fetch = fakeFetch({ code: 0, data: null, msg: '无此方案' }).impl
-  await assert.rejects(() => tool.execute({ planId: 'p1' }, {}), /缺少 data/)
+  await assert.rejects(() => tool.execute({ planId: 'p1' }, {} as ToolRunContext), /缺少 data/)
 })
 
 test('code 非 0 时抛出并带上后端 msg', async () => {
   const tool = capture({ tenantId: 1, url: 'http://x', timeoutMs: 1000 })
   globalThis.fetch = fakeFetch({ code: 500, msg: '方案不存在' }).impl
-  await assert.rejects(() => tool.execute({ planId: 'p1' }, {}), /方案不存在/)
+  await assert.rejects(() => tool.execute({ planId: 'p1' }, {} as ToolRunContext), /方案不存在/)
 })
 
 test('HTTP 4xx/5xx 抛出', async () => {
   const tool = capture({ tenantId: 1, url: 'http://x', timeoutMs: 1000 })
   globalThis.fetch = fakeFetch({}, 502).impl
-  await assert.rejects(() => tool.execute({ planId: 'p1' }, {}), /HTTP 502/)
+  await assert.rejects(() => tool.execute({ planId: 'p1' }, {} as ToolRunContext), /HTTP 502/)
 })
 
 test('planId 为空字符串时抛出', async () => {
   const tool = capture({ tenantId: 1, url: 'http://x', timeoutMs: 1000 })
-  await assert.rejects(() => tool.execute({ planId: '   ' }, {}), /不能为空/)
+  await assert.rejects(() => tool.execute({ planId: '   ' }, {} as ToolRunContext), /不能为空/)
 })
 
 test('Config schema 默认值：tenantId=1、接口 URL 指向 55 环境', () => {
@@ -171,8 +179,10 @@ test('render 产出含 planId 与落盘路径的文本，不含完整 JSON', () 
     adoptedPoints: [],
   })
   assert.equal(blocks[0].type, 'text')
-  assert.match(blocks[0].text, /p1/)
-  assert.match(blocks[0].text, /p1\.json/)
-  assert.match(blocks[0].text, /read_static_doc/)
-  assert.doesNotMatch(blocks[0].text, /"a":1/)
+  if (blocks[0].type === 'text') {
+    assert.match(blocks[0].text, /p1/)
+    assert.match(blocks[0].text, /p1\.json/)
+    assert.match(blocks[0].text, /read_static_doc/)
+    assert.doesNotMatch(blocks[0].text, /"a":1/)
+  }
 })

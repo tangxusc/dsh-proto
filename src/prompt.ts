@@ -1,19 +1,30 @@
 /**
  * 提示词段：取数落盘 → 读当前模版与方案数据 → 按序把各章全文交给 write_chapter。
  *
- * 章节写什么以 templates/dynamic-v1 当前文件为准，提示词不规定各章内容。
+ * 章节写什么以 resources/templates/dynamic-v1 当前文件为准，提示词不规定各章内容。
  */
+
+import type { Context } from '@deepseek-ai/cordis'
+import type { Chapter } from './chapters.ts'
+import type { DocEntry } from './static-docs.ts'
 
 /** 本插件提示词段的顺序（外部插件用自定义有限数）。 */
 const SECTION_ORDER = 5100
 
+/** 注册提示词段所需的最小 ctx。 */
+export interface PromptContext {
+  systemPrompt: {
+    section(spec: { name: string; order: number; text: string }): unknown
+  }
+}
+
 /**
  * 组装提示词文本。
- * @param chapters - 章节目录（来自 src/chapters.js）。
+ * @param chapters - 章节目录。
  * @param documents - 可读文件目录摘要（不含正文）。
  * @returns 提示词段文本。
  */
-export function buildPrompt(chapters, documents = []) {
+export function buildPrompt(chapters: readonly Chapter[], documents: readonly DocEntry[] = []): string {
   const brief = chapters.map((c) => `${c.no} ${c.name}`).join(' → ')
   const catalog = documents.length
     ? documents.map((d) => `- ${d.path}（${d.kind ? `${d.kind}，` : ''}${d.lines} 行）`).join('\n')
@@ -43,7 +54,7 @@ harness中多轮对话交互,使用中文`
  * @param chapters - 章节目录。
  * @param documents - 可读文件目录摘要。
  */
-export function registerPrompt(ctx, chapters, documents = []) {
+export function registerPrompt(ctx: PromptContext | Context, chapters: readonly Chapter[], documents: readonly DocEntry[] = []): void {
   ctx.systemPrompt.section({
     name: 'tool:test-plan-doc',
     order: SECTION_ORDER,
