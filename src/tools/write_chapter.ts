@@ -12,12 +12,14 @@ import type { Context } from '@deepseek-ai/cordis'
 import { defineTool } from '@deepseek-ai/dsh-tools'
 
 import { CHAPTERS, DOCUMENT_ORDER, findChapter, nextChapter } from '../chapters.ts'
-import { loadSessionState, saveState, type PlanSessionState } from '../session-state.ts'
+import { sessionIdOf, type SessionState, type SessionStateStore } from '../session-state.ts'
 
 /** 写章工具需要的部署配置子集。 */
 export interface WriteChapterConfig {
   outDir: string
   stateDir: string
+  /** 进度存储（redis 或文件 sidecar）。 */
+  store: SessionStateStore
 }
 
 /** 章节编号列表，供工具说明。 */
@@ -78,7 +80,8 @@ export function registerWriteChapter(ctx: Context, config: WriteChapterConfig): 
       }],
     },
     async execute(args, exec) {
-      const { sessionId, state } = loadSessionState(config.stateDir, exec)
+      const sessionId = sessionIdOf(exec)
+      const state = await config.store.load(sessionId)
       if (!state.planId) {
         throw new Error('请先调用 get_test_plan_info 获取方案数据')
       }
@@ -99,7 +102,7 @@ export function registerWriteChapter(ctx: Context, config: WriteChapterConfig): 
         throw new Error(`须按公文顺序写入，下一章应为 ${expected}，收到 ${chapterNo}`)
       }
       state.chapters[chapterNo] = content
-      saveState(config.stateDir, sessionId, state)
+      await config.store.save(sessionId, state)
 
       const missing = DOCUMENT_ORDER.filter((no) => !state.chapters[no])
       const done = missing.length === 0
@@ -120,7 +123,7 @@ export function registerWriteChapter(ctx: Context, config: WriteChapterConfig): 
 }
 
 /** 把已写章节按公文顺序拼成一份 HTML 并落盘，返回文件路径。 */
-function writeDocument(outDir: string, state: PlanSessionState): string {
+function writeDocument(outDir: string, state: SessionState): string {
   mkdirSync(outDir, { recursive: true })
   const planName = typeof state.basic?.planName === 'string' ? state.basic.planName : ''
   const title = planName ? `${planName} 试验方案` : '试验方案'

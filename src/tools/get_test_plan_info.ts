@@ -11,7 +11,7 @@ import { join } from 'node:path'
 import type { Context } from '@deepseek-ai/cordis'
 import { defineTool } from '@deepseek-ai/dsh-tools'
 
-import { sessionIdOf, saveState } from '../session-state.ts'
+import { sessionIdOf, type SessionStateStore } from '../session-state.ts'
 
 /** 取数工具需要的部署配置子集。 */
 export interface GetPlanConfig {
@@ -20,6 +20,8 @@ export interface GetPlanConfig {
   timeoutMs: number
   dataDir: string
   stateDir: string
+  /** 进度存储（redis 或文件 sidecar）。 */
+  store: SessionStateStore
 }
 
 /** 方案身份摘要。 */
@@ -202,7 +204,7 @@ export function registerGetTestPlanInfo(ctx: Context, config: GetPlanConfig): vo
       const saved = writePlanFile(config.dataDir, planId, data)
       const sessionId = sessionIdOf(exec)
       const basic = data.basicInfo
-      saveState(config.stateDir, sessionId, {
+      await config.store.save(sessionId, {
         planId,
         basic: typeof basic === 'object' && basic !== null && !Array.isArray(basic)
           ? basic as Record<string, unknown>

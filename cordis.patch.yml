@@ -1,8 +1,36 @@
-# 组合包层：向当前组合插入试验方案工具插件。
+# 组合包层：向当前组合插入基础扩展与业务扩展。
 #
-# 用户可在自己 profile 的 cordis.patch.yml 中按 id 覆盖下面这行来改配置——
+# 基础扩展（src/base_plugin/）与业务扩展（test-plan-tool）分开：
+# - redis-kv-store：独立的 Redis Provider 行，提供 extKvStore 服务供其它插件消费。
+# - internal-auth：内部网络无 token 鉴权 patch。
+# - test-plan-tool：业务插件（三个工具 + 提示词）。
+#
+# 用户可在自己 profile 的 cordis.patch.yml 中按 id 覆盖下面这些行来改配置——
 # patch 会替换目标行的整个 config，因此要重述需要的每个键，而不是只写改动的那个。
 - insert:
+    # 基础扩展：ExtKvStore 定义层的 Redis Provider（RedisKvStore）。连接参数都在这一行，
+    # 对外提供 extKvStore 服务（不感知业务；业务如何用它——键前缀、过期——在 test-plan-tool 行配置）。
+    # 连接参数可用对应环境变量覆盖（REDIS_URL / REDIS_PASSWORD / REDIS_DB），
+    # 环境变量优先于配置文件的显式字段。
+    - id: redis-kv-store
+      name: dsh-test-plan-tool/base-plugin/redis-kv-store
+      config:
+        # 是否启用并对外提供 extKvStore 服务；关闭时业务插件回退文件 sidecar。
+        # 部署用 docker-compose 时经 REDIS_URL 环境变量指向 redis 容器，可略掉 url。
+        enabled: true
+        url: 'redis://127.0.0.1:6379'
+        # 带密码时填这里，或设 REDIS_PASSWORD；未设则取 url 里 `:pass@` 的密码。
+        password: ''
+        # 库号（可选），或设 REDIS_DB。
+        db: 0
+        # 注入 webServer 的路由路径。
+        webPath: '/api/redis-kv-store'
+
+    # 基础扩展：内部网络无 token 鉴权 patch（包装 connection.requestRejection）。
+    - id: internal-auth
+      name: dsh-test-plan-tool/base-plugin/internal-auth
+
+    # 业务扩展：试验方案工具。
     - id: test-plan-tool
       name: dsh-test-plan-tool
       config:
@@ -18,8 +46,11 @@
         docDir: ''
         # get_test_plan_info 完整 JSON 落盘目录。
         dataDir: 'dsh-plan-data'
-        # 按 session 隔离的写章进度 sidecar。
+        # 按 session 隔离的写章进度 sidecar（redis 未启用时的回退）。
         stateDir: 'dsh-plan-state'
+        # 写章进度存 redis 时的键前缀与过期秒数（业务如何使用 extKvStore 服务）。
+        keyPrefix: 'dsh:plan-state:'
+        ttlSeconds: 259200
 
 # Web 把 model-facing 工具挪到 agent preset。本层把默认预设改成 test-plan，
 # 扫描本包 presets/：不挂 bash/fs/web/subagent，只继承 host 上的两个试验方案工具。

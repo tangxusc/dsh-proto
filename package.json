@@ -10,6 +10,14 @@
     ".": {
       "types": "./lib/index.d.ts",
       "default": "./lib/index.js"
+    },
+    "./base-plugin/redis-kv-store": {
+      "types": "./lib/base_plugin/ext-kv-store/redis_kv_store_provider.d.ts",
+      "default": "./lib/base_plugin/ext-kv-store/redis_kv_store_provider.js"
+    },
+    "./base-plugin/internal-auth": {
+      "types": "./lib/base_plugin/internal-auth/internal_auth.d.ts",
+      "default": "./lib/base_plugin/internal-auth/internal_auth.js"
     }
   },
   "files": [
@@ -43,5 +51,8 @@
     "@deepseek-ai/schemastery": "^3.18.0",
     "@types/node": "^24.5.2",
     "typescript": "^5.9.2"
+  },
+  "dependencies": {
+    "ioredis": "^6.0.0"
   }
 }

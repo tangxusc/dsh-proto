@@ -1,0 +1,9 @@
+# TUI 没有 webserver。预设行 id 是 dsh-tui-agent-presets，不是 web 的 agent-presets。
+- id: dsh-tui-agent-presets
+  config:
+    default: test-plan
+    includeShippedRoot: true
+    includeUserRoot: true
+    roots:
+      - path: !!js decodeURI(new URL('./node_modules/dsh-test-plan-tool/presets/', baseUrl).pathname)
+        trust: system

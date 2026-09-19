@@ -1,5 +1,9 @@
 /**
- * 按 session 隔离并落盘写章进度。真相在 {stateDir}/{sessionId}.json。
+ * 按 session 隔离并落盘的写章进度（业务专属存储层）。
+ *
+ * 真相在 {stateDir}/{sessionId}.json；启用 redis 时则在通用 KV（extKvStore 服务）之上
+ * 用 `sessionStore` 做 plan 专属映射。两种后端都收敛到 `SessionStateStore` 接口，工具
+ * 只依赖这一层，不关心底层落盘。
  *
  * 隔离键是 exec.agent.id（与 harness SessionId 相同）。没有 agent 时拒绝写入，
  * 避免退回进程级共享 state。
@@ -8,14 +12,20 @@
 import { mkdirSync, readFileSync, renameSync, writeFileSync } from 'node:fs'
 import { join, resolve } from 'node:path'
 
+import type { ExtKvStore } from './base_plugin/ext-kv-store/ext_kv_store.ts'
+
 /** 一个 session 的写章进度。 */
-export interface PlanSessionState {
+export interface SessionState {
   planId: string
   basic: Record<string, unknown> | null
   points: string[]
   chapters: Record<string, string>
   planFile: string
 }
+
+/** 写章进度存到 redis 时的键前缀与过期默认值。 */
+export const DEFAULT_SESSION_KEY_PREFIX = 'dsh:plan-state:'
+export const DEFAULT_SESSION_TTL_SECONDS = 3 * 24 * 60 * 60
 
 /** 工具执行上下文里至少要有 agent.id。 */
 export interface AgentIdHolder {
@@ -33,7 +43,7 @@ export function resolveStateDir(configured: string | undefined): string {
 }
 
 /** 空进度，表示尚未取数。 */
-export function emptyState(): PlanSessionState {
+export function emptyState(): SessionState {
   return { planId: '', basic: null, points: [], chapters: {}, planFile: '' }
 }
 
@@ -64,7 +74,7 @@ function statePath(stateDir: string, sessionId: string): string {
   return join(stateDir, stateFileName(sessionId))
 }
 
-function normalize(raw: unknown): PlanSessionState {
+function normalize(raw: unknown): SessionState {
   if (typeof raw !== 'object' || raw === null || Array.isArray(raw)) {
     return emptyState()
   }
@@ -93,7 +103,7 @@ function isNotFound(error: unknown): boolean {
  * @param sessionId - 会话 id。
  * @returns 进度对象（新对象，可原地改）。
  */
-export function loadState(stateDir: string, sessionId: string): PlanSessionState {
+export function loadState(stateDir: string, sessionId: string): SessionState {
   const path = statePath(stateDir, sessionId)
   let text: string
   try {
@@ -117,7 +127,7 @@ export function loadState(stateDir: string, sessionId: string): PlanSessionState
  * @param sessionId - 会话 id。
  * @param state - 进度。
  */
-export function saveState(stateDir: string, sessionId: string, state: PlanSessionState): void {
+export function saveState(stateDir: string, sessionId: string, state: SessionState): void {
   mkdirSync(stateDir, { recursive: true })
   const path = statePath(stateDir, sessionId)
   const tmp = `${path}.${process.pid}.tmp`
@@ -132,8 +142,69 @@ export function saveState(stateDir: string, sessionId: string, state: PlanSessio
  */
 export function loadSessionState(stateDir: string, exec: AgentIdHolder): {
   sessionId: string
-  state: PlanSessionState
+  state: SessionState
 } {
   const sessionId = sessionIdOf(exec)
   return { sessionId, state: loadState(stateDir, sessionId) }
+}
+
+/** 对外开放的规范化入口（redis 存储复用同一套字段容错）。 */
+export function normalizeState(raw: unknown): SessionState {
+  return normalize(raw)
+}
+
+/**
+ * 按 session 隔离的写章进度存储接口。工具只依赖这一层，不关心底层是文件 sidecar
+ * 还是 redis：`key = sessionId`，`value = SessionState 的 JSON 序列化`。
+ */
+export interface SessionStateStore {
+  /** 读取一个 session 的进度；缺失时返回空进度。 */
+  load(sessionId: string): Promise<SessionState>
+  /** 保存一个 session 的进度（覆盖写）。 */
+  save(sessionId: string, state: SessionState): Promise<void>
+}
+
+/**
+ * 在通用 KV（`extKvStore` 服务）之上做 plan 专属映射：`key = prefix + sessionId`，
+ * `value = SessionState 的 JSON 序列化`，写入时带 `ttlSeconds` 过期。缺失/损坏回退空进度。
+ * @param kv - 某个 KV Provider 提供的通用 KV（如 `RedisKvStore`）。
+ * @param options - 前缀与过期时间。
+ * @returns 适配成 plan 专属的存储。
+ */
+export function sessionStore(kv: ExtKvStore, options: { prefix: string; ttlSeconds: number }): SessionStateStore {
+  const { prefix, ttlSeconds } = options
+  const key = (sessionId: string) => `${prefix}${sessionId}`
+  return {
+    async load(sessionId: string): Promise<SessionState> {
+      const raw = await kv.get(key(sessionId))
+      if (raw === null || raw === undefined || raw.length === 0) {
+        return emptyState()
+      }
+      try {
+        return normalize(JSON.parse(raw))
+      } catch {
+        // 单个键损坏不影响其它 session，回退空进度。
+        return emptyState()
+      }
+    },
+    async save(sessionId: string, state: SessionState): Promise<void> {
+      await kv.set(key(sessionId), JSON.stringify(state), ttlSeconds)
+    },
+  }
+}
+
+/**
+ * 基于本地文件 sidecar 的存储实现（redis 未启用时的回退）。
+ * @param stateDir - 进度落盘目录。
+ * @returns 存储实现。
+ */
+export function fileStore(stateDir: string): SessionStateStore {
+  return {
+    async load(sessionId: string): Promise<SessionState> {
+      return loadState(stateDir, sessionId)
+    },
+    async save(sessionId: string, state: SessionState): Promise<void> {
+      saveState(stateDir, sessionId, state)
+    },
+  }
 }

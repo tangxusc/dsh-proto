@@ -1,4 +1,14 @@
 services:
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    command: ["redis-server", "--appendonly", "no", "--save", ""]
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+    # 状态按 session 写 redis，TTL 3 天自动过期；不挂持久卷，重启即清空。
   dsh:
     image: dsh-test-plan-tool:0.1.0
     platform: linux/amd64
@@ -7,13 +17,48 @@ services:
       dockerfile: Dockerfile
       platforms:
         - linux/amd64
+    depends_on:
+      redis:
+        condition: service_healthy
     ports:
       - "3080:3080"
     environment:
+      DSH_MODE: web
       CHENGFEI_API_KEY: ${CHENGFEI_API_KEY:-}
       TRUSTED_HOSTS: ${TRUSTED_HOSTS:-}
       PORT: "3080"
+      # 让插件把状态写到 compose 内的 redis 容器。
+      # 带密码/库号的 redis 可经 REDIS_PASSWORD / REDIS_DB 覆盖（环境变量优先于配置）。
+      REDIS_URL: ${REDIS_URL:-redis://redis:6379}
+      REDIS_PASSWORD: ${REDIS_PASSWORD:-}
+      REDIS_DB: ${REDIS_DB:-}
     volumes:
       - ./dsh-output:/data/dsh-output
       - ./dsh-plan-data:/data/dsh-plan-data
       - ./dsh-plan-state:/data/dsh-plan-state
+  # 终端界面：docker compose --profile tui run --rm dsh-tui
+  dsh-tui:
+    image: dsh-test-plan-tool:0.1.0
+    platform: linux/amd64
+    build:
+      context: .
+      dockerfile: Dockerfile
+      platforms:
+        - linux/amd64
+    depends_on:
+      redis:
+        condition: service_healthy
+    stdin_open: true
+    tty: true
+    environment:
+      DSH_MODE: tui
+      CHENGFEI_API_KEY: ${CHENGFEI_API_KEY:-}
+      REDIS_URL: ${REDIS_URL:-redis://redis:6379}
+      REDIS_PASSWORD: ${REDIS_PASSWORD:-}
+      REDIS_DB: ${REDIS_DB:-}
+    volumes:
+      - ./dsh-output:/data/dsh-output
+      - ./dsh-plan-data:/data/dsh-plan-data
+      - ./dsh-plan-state:/data/dsh-plan-state
+    profiles:
+      - tui

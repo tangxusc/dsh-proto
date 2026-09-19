@@ -30,6 +30,8 @@ function captureAll(config: Partial<PluginConfig>): Map<string, ToolDefinition> 
   const ctx = {
     tools: { register: (tool: ToolDefinition) => { tools.set(tool.name, tool) } },
     systemPrompt: { section: () => {} },
+    // 未挂 redis-kv-store 基础插件：业务插件回退文件 sidecar。
+    get: () => undefined,
   }
   apply(asCtx(ctx), { tenantId: 1, url: 'http://x', timeoutMs: 1000, docDir: '', ...defaults, ...config } as PluginConfig)
   return tools
@@ -158,6 +160,8 @@ test('Config schema 默认值：tenantId=1、接口 URL 指向 55 环境', () =>
   assert.equal(resolved.docDir, '')
   assert.equal(resolved.dataDir, 'dsh-plan-data')
   assert.equal(resolved.stateDir, 'dsh-plan-state')
+  assert.equal(resolved.keyPrefix, 'dsh:plan-state:')
+  assert.equal(resolved.ttlSeconds, 3 * 24 * 60 * 60)
   assert.match(resolved.url, /getAiTestPlanData$/)
 })
 

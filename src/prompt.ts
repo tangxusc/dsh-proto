@@ -45,7 +45,8 @@ export function buildPrompt(chapters: readonly Chapter[], documents: readonly Do
 ${catalog}
 .html 是章节模版；.json 是方案数据；.md/.txt 是静态资料。不传 path 可列出目录。
 
-harness中多轮对话交互,使用中文`
+harness中多轮对话交互,使用中文
+不要讨论与试验方案文档生成无关的内容`
 }
 
 /**

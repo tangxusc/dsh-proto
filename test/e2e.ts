@@ -26,6 +26,7 @@ const tools = new Map<string, ToolDefinition>()
 apply({
   tools: { register: (t: ToolDefinition) => tools.set(t.name, t) },
   systemPrompt: { section: () => {} },
+  get: () => undefined,
 } as unknown as Context, {
   tenantId: 1,
   url: 'http://120.232.136.52:8095/admin-api/third/protocol/test-plan/getAiTestPlanData',

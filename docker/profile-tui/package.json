@@ -1,14 +1,14 @@
 {
-  "name": "dsh-profile-test-plan-web",
+  "name": "dsh-profile-test-plan-tui",
   "private": true,
   "dependencies": {
-    "dsh-test-plan-tool": "file:./node_modules/dsh-test-plan-tool"
+    "@deepseek-harness-tui/dsh-tui": "0.10.2"
   },
   "dsh": {
     "profile": {
       "bundles": [
         "@deepseek-ai/dsh-base",
-        "@deepseek-ai/dsh-web-app",
+        "@deepseek-harness-tui/dsh-tui",
         "dsh-test-plan-tool"
       ],
       "patchReload": "live"
