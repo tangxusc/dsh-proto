@@ -82,7 +82,7 @@ PLAN_ID=<planId> npm run e2e
 
 ## Docker
 
-镜像预置两套 profile，不要在容器里跑 `dsh plugin add`。入口由 `DSH_MODE` 或容器首参选择：
+镜像预置两套 profile，不要在容器里跑 `dsh plugin add`。最终镜像是 `node:22-bookworm-slim` 多阶段构建。入口由 `DSH_MODE` 或容器首参选择：
 
 | 模式 | profile | 组合包 | 启动 |
 | --- | --- | --- | --- |

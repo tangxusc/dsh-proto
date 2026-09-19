@@ -191,27 +191,27 @@ function registerWebApi(ctx: Context, webServer: WebServerLike, kv: ExtKvStore, 
   ctx.effect(() => dispose, `register webServer route ${path}`)
 }
 
-/** 注册 tui 的 `/get-redis-kv-store` 指令：返回当前 session 为 key 的原始值。 */
+/** 注册 tui 的 `/get-redis-kv-store` 指令：按 rawInput 的 key 取原始值（与 web `?key=` 一致）。 */
 function registerTuiCommand(ctx: Context, commands: CommandsLike, kv: ExtKvStore): void {
   const definition: CommandDefinitionLike = {
     name: 'get-redis-kv-store',
-    description: '获取当前 session 在 redis 状态存储中的原始值（键为 session id）。',
-    input: { hint: '打印当前会话的 redis 状态存储原始值' },
+    description: '按 key 读取 redis KV 的原始值',
+    input: { hint: '<key>' },
     async handler(invocation) {
-      const sessionId = String(invocation?.agent?.id ?? '').trim()
-      if (!sessionId) {
-        return { kind: 'error', text: '缺少当前 session id' }
+      const key = String(invocation?.rawInput ?? '').trim()
+      if (!key) {
+        return { kind: 'error', text: '缺少 key（用法：/get-redis-kv-store <key>）' }
       }
       try {
-        const value = await kv.get(sessionId)
-        return { kind: 'success', text: `session=${sessionId}\n${valueBody(value)}` }
+        const value = await kv.get(key)
+        return { kind: 'success', text: valueBody(value) }
       } catch (error) {
         return { kind: 'error', text: error instanceof Error ? error.message : String(error) }
       }
     },
   }
-  const dispose = commands.register(definition)
-  ctx.effect(() => dispose, 'register /get-redis-kv-store command')
+  // 与官方 dsh 指令相同：register 的 disposer 挂到本插件 fiber，卸载时反注册。
+  ctx.effect(() => commands.register(definition), 'register /get-redis-kv-store command')
 }
 
 /**
@@ -232,14 +232,16 @@ export function apply(ctx: Context, config: Config): void {
   // 提供给其它插件消费的通用 KV。ctx.provide 的移除随本插件 dispose 自动发生。
   ctx.provide(EXT_KV_SERVICE, kv)
 
-  // commands 是同步可用的 tui 服务，直接注册（headless/tui 下的读取入口）。
-  const commands = ctx.get('commands') as CommandsLike | undefined
-  if (commands !== undefined) {
-    registerTuiCommand(ctx, commands, kv)
-  }
+  // commands / webServer 都是可选依赖：必须 ctx.inject，不能 ctx.get。
+  // Cordis 的 get(name) 默认 strict，且只看本 fiber 的 isolate 表；本插件未声明
+  // inject: ['commands'] 时 get 恒为 undefined，指令永远注册不上。inject 会等
+  // 服务 fiber 进入 ACTIVE 再回调（与 dsh-plan-mode / permission-presets 相同）。
+  ctx.inject(['commands'], (commandCtx) => {
+    const commands = (commandCtx as Context & { commands?: CommandsLike }).commands
+    if (commands === undefined) return
+    registerTuiCommand(commandCtx, commands, kv)
+  })
 
-  // webServer 是可选依赖：用嵌套 ctx.inject 访问，仅当服务实际存在时才注册 HTTP API。
-  // 这与 dsh-client-connection / api-gateway 的做法一致，且不会阻塞插件 apply。
   ctx.inject(['webServer'], (webCtx) => {
     const webServer = (webCtx as Context & { webServer?: WebServerLike }).webServer
     if (webServer === undefined) return

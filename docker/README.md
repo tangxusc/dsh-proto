@@ -2,6 +2,8 @@
 
 离线镜像内部文件：预装 DSH、本插件，以及 web / tui 两套 profile，避免运行时 `dsh plugin add`。
 
+最终镜像用 `node:22-bookworm-slim` 多阶段构建：编译工具与源码留在 build 阶段，运行时只拷生产依赖和 linux-x64 原生库。
+
 | 路径 | 职责 |
 | --- | --- |
 | `dsh-package.json` | 镜像内 DSH 依赖清单 |

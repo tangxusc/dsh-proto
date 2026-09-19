@@ -55,11 +55,22 @@ function makeCtx(services: { webServer?: { register(r: RouteReg): Deregister }; 
   }
   const ctx = {
     ...base,
-    // 模拟可选注入：仅当 webServer 存在时触发回调，并把服务提供为上下文属性。
-    inject(names: string[], cb: (webCtx: unknown) => void) {
-      if (Array.isArray(names) && names.includes('webServer') && services.webServer !== undefined) {
-        cb({ ...base, webServer: services.webServer })
+    // 模拟可选注入：列出的服务都在时才回调（与 Cordis inject 一致）。
+    inject(names: string[], cb: (nested: unknown) => void) {
+      if (!Array.isArray(names) || names.length === 0) return
+      const extra: Record<string, unknown> = {}
+      for (const name of names) {
+        if (name === 'webServer') {
+          if (services.webServer === undefined) return
+          extra.webServer = services.webServer
+        } else if (name === 'commands') {
+          if (services.commands === undefined) return
+          extra.commands = services.commands
+        } else {
+          return
+        }
       }
+      cb({ ...base, ...extra })
     },
     // 模拟插件卸载：执行注册的所有 effect，关闭 redis 连接、清理定时器。
     async dispose() {
@@ -190,7 +201,7 @@ test('web 形态：标准 Content-Type: text/event-stream 请求走 SSE 订阅',
   }
 })
 
-test('tui 形态：注册 /get-redis-kv-store 指令并返回当前 session 的原始值', async () => {
+test('tui 形态：注册 /get-redis-kv-store 指令并按 key 返回原始值', async () => {
   const fake = await startFakeRedis()
   const cmds: CmdReg[] = []
   const fakeCtx = makeCtx({
@@ -208,11 +219,10 @@ test('tui 形态：注册 /get-redis-kv-store 指令并返回当前 session 的�
     assert.equal(cmds[0].name, 'get-redis-kv-store')
 
     const store = fakeCtx.provided.get('extKvStore') as KvLike
-    await store.set('sess-1', JSON.stringify({ planId: 'p-sess-1', points: ['a'] }))
+    await store.set('dsh:plan-state:sess-1', JSON.stringify({ planId: 'p-sess-1', points: ['a'] }))
 
-    const result: any = await cmds[0].handler({ agent: { id: 'sess-1' } })
+    const result: any = await cmds[0].handler({ rawInput: ' dsh:plan-state:sess-1 ' })
     assert.equal(result.kind, 'success')
-    assert.ok(result.text.includes('sess-1'))
     assert.ok(result.text.includes('p-sess-1'))
     assert.ok(result.text.includes('a'))
   } finally {
@@ -221,7 +231,7 @@ test('tui 形态：注册 /get-redis-kv-store 指令并返回当前 session 的�
   }
 })
 
-test('tui 形态：缺 session id 时返回 error', async () => {
+test('tui 形态：缺 key 时返回 error', async () => {
   const fake = await startFakeRedis()
   const cmds: CmdReg[] = []
   const fakeCtx = makeCtx({
@@ -234,8 +244,21 @@ test('tui 形态：缺 session id 时返回 error', async () => {
   })
   try {
     apply(fakeCtx.ctx as never, enabledConfig(fake))
-    const result: any = await cmds[0].handler({ rawInput: 'x' })
+    const result: any = await cmds[0].handler({ rawInput: '  ' })
     assert.equal(result.kind, 'error')
+    assert.match(String(result.text), /缺少 key/)
+  } finally {
+    await fakeCtx.dispose()
+    await fake.close()
+  }
+})
+
+test('tui 形态：无 commands 服务时不注册指令', async () => {
+  const fake = await startFakeRedis()
+  const fakeCtx = makeCtx({})
+  try {
+    apply(fakeCtx.ctx as never, enabledConfig(fake))
+    assert.ok(fakeCtx.provided.has('extKvStore'))
   } finally {
     await fakeCtx.dispose()
     await fake.close()

@@ -21,3 +21,4 @@ curl -N -H 'Content-Type: text/event-stream' \
 ```shell
 /get-redis-kv-store <key>
 ```
+`<key>` 是 Redis 里的原始键，与 web 的 `?key=` 相同。写章进度的键是 `dsh:plan-state:<sessionId>`，不是裸 session id。
