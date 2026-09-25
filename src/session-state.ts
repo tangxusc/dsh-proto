@@ -16,11 +16,12 @@ import type { ExtKvStore } from './base_plugin/ext-kv-store/ext_kv_store.ts'
 
 /** 一个 session 的写章进度。 */
 export interface SessionState {
+  /** 当前正在写的方案 id（来自 write_chapter 的入参）。 */
   planId: string
+  /** 方案身份摘要，目前只用于文档标题里的 planName。 */
   basic: Record<string, unknown> | null
-  points: string[]
+  /** 已写章节：key 为章节编号（cover/01…11），value 为该章全文。 */
   chapters: Record<string, string>
-  planFile: string
 }
 
 /** 写章进度存到 redis 时的键前缀与过期默认值。 */
@@ -42,9 +43,9 @@ export function resolveStateDir(configured: string | undefined): string {
   return resolve(raw || 'dsh-plan-state')
 }
 
-/** 空进度，表示尚未取数。 */
+/** 空进度，表示尚未开始写。 */
 export function emptyState(): SessionState {
-  return { planId: '', basic: null, points: [], chapters: {}, planFile: '' }
+  return { planId: '', basic: null, chapters: {} }
 }
 
 /**
@@ -85,11 +86,9 @@ function normalize(raw: unknown): SessionState {
     basic: typeof rec.basic === 'object' && rec.basic !== null && !Array.isArray(rec.basic)
       ? rec.basic as Record<string, unknown>
       : null,
-    points: Array.isArray(rec.points) ? rec.points.map((p) => String(p)) : [],
     chapters: typeof chapters === 'object' && chapters !== null && !Array.isArray(chapters)
       ? Object.fromEntries(Object.entries(chapters as Record<string, unknown>).map(([k, v]) => [k, String(v)]))
       : {},
-    planFile: typeof rec.planFile === 'string' ? rec.planFile : '',
   }
 }
 

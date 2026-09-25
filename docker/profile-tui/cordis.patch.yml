@@ -1,9 +1,8 @@
-# TUI 没有 webserver。预设行 id 是 dsh-tui-agent-presets，不是 web 的 agent-presets。
-- id: dsh-tui-agent-presets
+# TUI 没有 webserver。
+#
+# 0.1.7 起预设注册表行 id 是 dsh-tui-agent-preset-registry（web 侧是 agent-preset-registry）。
+# 旧的 dsh-tui-agent-presets 行 + roots 目录扫描机制已被取代，只认 config.default。
+# test-plan 的预设声明由本包 presets/test-plan.patch.yml 提供。
+- id: dsh-tui-agent-preset-registry
   config:
     default: test-plan
-    includeShippedRoot: true
-    includeUserRoot: true
-    roots:
-      - path: !!js decodeURI(new URL('./node_modules/dsh-test-plan-tool/presets/', baseUrl).pathname)
-        trust: system

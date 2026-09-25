@@ -3,7 +3,11 @@
 # 基础扩展（src/base_plugin/）与业务扩展（test-plan-tool）分开：
 # - redis-kv-store：独立的 Redis Provider 行，提供 extKvStore 服务供其它插件消费。
 # - internal-auth：内部网络无 token 鉴权 patch。
-# - test-plan-tool：业务插件（三个工具 + 提示词）。
+# - tool-filter：按 server 过滤 MCP 工具的白名单（挂在 agent 预设里，见 presets/）。
+# - test-plan-tool：业务插件（只读查阅 + 写章两个工具 + 提示词）。
+#
+# 方案数据由**独立进程**的 MCP server 以资源形式提供：mcp-test-plan 行连上它，
+# dsh-base 自带的 mcp-resources 行再把资源工具交给模型。本包不取数、不落盘方案 JSON。
 #
 # 用户可在自己 profile 的 cordis.patch.yml 中按 id 覆盖下面这些行来改配置——
 # patch 会替换目标行的整个 config，因此要重述需要的每个键，而不是只写改动的那个。
@@ -30,37 +34,42 @@
     - id: internal-auth
       name: dsh-test-plan-tool/base-plugin/internal-auth
 
-    # 业务扩展：试验方案工具。
+    # MCP 桥接：把**独立进程**的 MCP server 的工具注册进 ctx.tools。
+    # 每台 server 一行；行 id 与 serverName 都叫 test-plan。地址可配置，默认指向本机 dev server。
+    # 方案数据不在这里 —— 它由同一台 server 以**资源**形式提供，由 dsh-base 自带的
+    # mcp-resources 行把 list_mcp_resources / read_mcp_resource 等交给模型。
+    - id: mcp-test-plan
+      name: '@deepseek-ai/dsh-mcp-client'
+      config:
+        transport: 'streamable-http'
+        serverName: 'test-plan'                 # → 工具名 mcp__test-plan__<raw>
+        url: !!js process.env.MCP_SERVER_URL ?? 'http://127.0.0.1:8096/mcp'
+        headers: {}
+        toolCallTimeoutMs: 60000
+        # server 没起时不阻断 dsh 启动；模型仍能用只读资料与写章工具。
+        failOnStartupError: false
+        reconnect: { enabled: true, initialDelayMs: 500, maxDelayMs: 30000, maxAttempts: 10 }
+
+    # 业务扩展：只读查阅 + 写章（方案数据走上面的 MCP 资源，本插件不取数、不落盘方案 JSON）。
     - id: test-plan-tool
       name: dsh-test-plan-tool
       config:
-        # 租户 id，随每次请求发送；默认 1，按需覆盖。
-        tenantId: 1
-        # 试验方案数据接口地址；默认 55 环境 admin-api。
-        url: 'http://120.232.136.52:8095/admin-api/third/protocol/test-plan/getAiTestPlanData'
-        # 请求超时（毫秒）。
-        timeoutMs: 30000
         # 生成文档的输出目录；相对路径以 dsh 进程工作目录为基准。
         outDir: 'dsh-output'
         # 静态参考文档根；空则使用插件自带 resources/doc。
         docDir: ''
-        # get_test_plan_info 完整 JSON 落盘目录。
-        dataDir: 'dsh-plan-data'
         # 按 session 隔离的写章进度 sidecar（redis 未启用时的回退）。
         stateDir: 'dsh-plan-state'
         # 写章进度存 redis 时的键前缀与过期秒数（业务如何使用 extKvStore 服务）。
         keyPrefix: 'dsh:plan-state:'
         ttlSeconds: 259200
 
-# Web 把 model-facing 工具挪到 agent preset。本层把默认预设改成 test-plan，
-# 扫描本包 presets/：不挂 bash/fs/web/subagent，只继承 host 上的两个试验方案工具。
+# Web 把 model-facing 工具挪到 agent preset。本层把默认预设改成 test-plan。
+#
+# 0.1.7 起旧的 `agent-presets` 行（带 includeShippedRoot / includeUserRoot / roots 目录扫描）
+# 已被 `agent-preset-registry` 取代：注册表只认 config.default，不再扫描目录。
+# 本包的 test-plan 预设声明见 presets/test-plan.patch.yml，随 dsh.bundle.patch 数组加载。
 # patch 替换整份 config，因此把 schema 里会用到的键都写上。
-- id: agent-presets
+- id: agent-preset-registry
   config:
     default: test-plan
-    includeShippedRoot: true
-    includeUserRoot: true
-    roots:
-      # profile 的 cordis.yml 目录是 ctx.baseUrl；插件经 dsh plugin add 后 link 在其 node_modules 下。
-      - path: !!js decodeURI(new URL('./node_modules/dsh-test-plan-tool/presets/', baseUrl).pathname)
-        trust: system

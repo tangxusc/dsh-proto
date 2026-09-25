@@ -2,7 +2,7 @@
   "name": "dsh-profile-test-plan-tui",
   "private": true,
   "dependencies": {
-    "@deepseek-harness-tui/dsh-tui": "0.10.2"
+    "@deepseek-harness-tui/dsh-tui": "0.11.0"
   },
   "dsh": {
     "profile": {

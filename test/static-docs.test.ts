@@ -15,34 +15,24 @@ import { apply } from '../src/index.ts'
 import {
   DEFAULT_PAGE_LINES,
   MAX_PAGE_LINES,
-  PLAN_EXT,
   TEMPLATE_EXT,
   bundledDocDir,
   bundledTemplateDir,
   listDocs,
-  listRoots,
   readDoc,
-  readFromRoots,
-  resolveDataDir,
   resolveDocPath,
 } from '../src/static-docs.ts'
-import { writePlanFile } from '../src/tools/get_test_plan_info.ts'
 
 const FIX = join(tmpdir(), `dsh-static-docs-${process.pid}`)
-const EMPTY_DATA = join(tmpdir(), `dsh-plan-empty-${process.pid}`)
 
-function captureRead(docDir: string, dataDir = EMPTY_DATA): ToolDefinition {
+function captureRead(docDir: string): ToolDefinition {
   const map = new Map<string, ToolDefinition>()
   apply({
     tools: { register: (t: ToolDefinition) => map.set(t.name, t) },
     systemPrompt: { section: () => {} },
   } as unknown as Context, {
-    tenantId: 1,
-    url: 'http://x',
-    timeoutMs: 1000,
     outDir: 'dsh-output-test',
     docDir,
-    dataDir,
     stateDir: 'dsh-plan-state-test',
   })
   const tool = map.get('read_static_doc')
@@ -122,7 +112,10 @@ test('工具：沙箱目录内可读，逃逸失败', async () => {
   assert.equal(ok.offset, 1)
   assert.equal(ok.limit, DEFAULT_PAGE_LINES)
 
-  await assert.rejects(() => tool.execute({ path: '../package.json' }, {} as ToolRunContext), /相对路径|之外/)
+  // .json 已不再有可读根（方案数据改由 MCP 资源提供）。
+  await assert.rejects(() => tool.execute({ path: '../package.json' }, {} as ToolRunContext), /不支持的文件类型/)
+  // 扩展名合法时仍必须被沙箱拦住。
+  await assert.rejects(() => tool.execute({ path: '../escape.md' }, {} as ToolRunContext), /相对路径|之外/)
   await assert.rejects(() => tool.execute({ path: outside }, {} as ToolRunContext), /相对路径/)
 
   try {
@@ -139,48 +132,6 @@ test('工具：沙箱目录内可读，逃逸失败', async () => {
     rmSync(outside, { force: true })
     rmSync(FIX, { recursive: true, force: true })
   }
-})
-
-test('dataDir 默认 dsh-plan-data，可覆盖', () => {
-  assert.ok(resolveDataDir('').endsWith('dsh-plan-data'))
-  assert.ok(resolveDataDir('  ').endsWith('dsh-plan-data'))
-  assert.equal(resolveDataDir(FIX), FIX)
-})
-
-test('取数 JSON 可从 dataDir 分页读取，且不能越权', () => {
-  const dataDir = join(FIX, 'plan-data')
-  rmSync(FIX, { recursive: true, force: true })
-  mkdirSync(dataDir, { recursive: true })
-  const saved = writePlanFile(dataDir, 'p1', { basicInfo: { planName: '航电' } })
-  assert.equal(saved.path, 'p1.json')
-  const listed = listRoots([{ dir: dataDir, kind: 'plan', exts: PLAN_EXT }])
-  assert.equal(listed[0].kind, 'plan')
-  assert.equal(listed[0].path, 'p1.json')
-  const page = readFromRoots([{ dir: dataDir, kind: 'plan', exts: PLAN_EXT }], saved.path, 1, 5)
-  assert.equal(page.kind, 'plan')
-  assert.match(page.content, /"planName": "航电"/)
-  assert.throws(
-    () => readFromRoots([{ dir: dataDir, kind: 'plan', exts: PLAN_EXT }], '../package.json', 1, 5),
-    /相对路径|之外|不支持/,
-  )
-  rmSync(FIX, { recursive: true, force: true })
-})
-
-test('工具：可列出并分页读取 dataDir 中的方案 JSON', async () => {
-  const dataDir = join(FIX, 'plan-data')
-  rmSync(FIX, { recursive: true, force: true })
-  mkdirSync(FIX, { recursive: true })
-  writeFileSync(join(FIX, 'a.md'), '# A\n', 'utf8')
-  writePlanFile(dataDir, 'p9', { basicInfo: { planName: '方案九' } })
-  const tool = captureRead(FIX, dataDir)
-  const listed = await tool.execute({}, {} as ToolRunContext) as { documents: { path: string; kind: string }[] }
-  assert.ok(listed.documents.some((d) => d.path === 'a.md' && d.kind === 'static'))
-  assert.ok(listed.documents.some((d) => d.path === 'p9.json' && d.kind === 'plan'))
-  const page = await tool.execute({ path: 'p9.json', offset: 1, limit: 4 }, {} as ToolRunContext) as { kind: string; content: string }
-  assert.equal(page.kind, 'plan')
-  assert.match(page.content, /方案九/)
-  await assert.rejects(() => tool.execute({ path: 'p9.json.bak' }, {} as ToolRunContext), /不支持的文件类型/)
-  rmSync(FIX, { recursive: true, force: true })
 })
 
 test('章节模版可列出并只读，不经渲染', async () => {

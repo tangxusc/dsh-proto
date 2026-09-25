@@ -1,4 +1,4 @@
-# linux/amd64 离线可运行镜像：内置 Node、DSH 0.1.5-rc.2、本插件，以及 web / tui 两套 profile。
+# linux/amd64 离线可运行镜像：内置 Node、DSH 0.1.7-rc.2、本插件，以及 web / tui 两套 profile。
 # 构建：docker buildx build --platform linux/amd64 -t dsh-test-plan-tool:0.1.0 --load .
 # Web： docker run --platform linux/amd64 -p 3080:3080 -e CHENGFEI_API_KEY=... dsh-test-plan-tool:0.1.0
 # TUI： docker run --platform linux/amd64 -it -e DSH_MODE=tui -e CHENGFEI_API_KEY=... dsh-test-plan-tool:0.1.0

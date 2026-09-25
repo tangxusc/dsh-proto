@@ -1,31 +1,25 @@
 /**
- * get_test_plan_info 工具单测：捕获注册的定义，用假 fetch 验证请求体、信封拆解与错误路径。
- * 依赖 @deepseek-ai/dsh-tools 与 @deepseek-ai/schemastery 需已安装（见 README）。
+ * 插件接线：注册的工具集合、每个工具一个文件、Config schema 默认值。
+ *
+ * 原生取数工具已删除 —— 方案数据改由独立 MCP server 以资源形式提供（见 test/mcp-server.test.ts）。
  */
 
-import { existsSync, readFileSync, rmSync } from 'node:fs'
+import { existsSync } from 'node:fs'
 import { dirname, join } from 'node:path'
-import { tmpdir } from 'node:os'
 import { fileURLToPath } from 'node:url'
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
 
 import type { Context } from '@deepseek-ai/cordis'
-import type { ToolDefinition, ToolRunContext } from '@deepseek-ai/dsh-tools'
+import type { ToolDefinition } from '@deepseek-ai/dsh-tools'
 
 import { apply, Config, type Config as PluginConfig } from '../src/index.ts'
+import { DOCUMENT_ORDER } from '../src/chapters.ts'
 
-const DATA = join(tmpdir(), `dsh-plan-data-${process.pid}`)
-const STATE = join(tmpdir(), `dsh-plan-state-${process.pid}`)
-const defaults: Partial<PluginConfig> = { outDir: 'dsh-output-test', dataDir: DATA, stateDir: STATE }
-const EXEC = { agent: { id: 'sess-index' } } as ToolRunContext
-
-function asCtx(value: object): Context {
-  return value as Context
-}
+const root = join(dirname(fileURLToPath(import.meta.url)), '..')
 
 /** 用假 ctx 捕获全部注册的工具，按名字取用。传入 config 覆盖默认值。 */
-function captureAll(config: Partial<PluginConfig>): Map<string, ToolDefinition> {
+function captureAll(config: Partial<PluginConfig> = {}): Map<string, ToolDefinition> {
   const tools = new Map<string, ToolDefinition>()
   const ctx = {
     tools: { register: (tool: ToolDefinition) => { tools.set(tool.name, tool) } },
@@ -33,160 +27,58 @@ function captureAll(config: Partial<PluginConfig>): Map<string, ToolDefinition> 
     // 未挂 redis-kv-store 基础插件：业务插件回退文件 sidecar。
     get: () => undefined,
   }
-  apply(asCtx(ctx), { tenantId: 1, url: 'http://x', timeoutMs: 1000, docDir: '', ...defaults, ...config } as PluginConfig)
+  apply(ctx as unknown as Context, {
+    outDir: 'dsh-output-test',
+    docDir: '',
+    stateDir: 'dsh-plan-state-test',
+    ...config,
+  } as PluginConfig)
   return tools
 }
 
-/** 取 get_test_plan_info 工具定义。 */
-function capture(config: Partial<PluginConfig>): ToolDefinition {
-  const tool = captureAll(config).get('get_test_plan_info')
-  assert.ok(tool, '未注册 get_test_plan_info')
-  return tool
-}
+test('注册恰好两个工具：只读查阅与写章', () => {
+  const tools = captureAll()
+  assert.deepEqual([...tools.keys()].sort(), ['read_static_doc', 'write_chapter'])
+})
 
-/** 假 fetch：记录调用参数，返回指定 JSON 与状态码。 */
-function fakeFetch(payload: unknown, status = 200) {
-  const calls: { url: string; init?: RequestInit }[] = []
-  const impl: typeof fetch = async (url, init) => {
-    calls.push({ url: String(url), init })
-    return { status, json: async () => payload } as Response
-  }
-  return { impl, calls }
-}
-
-test('注册恰好三个工具，且各有独立文件', () => {
-  const tools = captureAll({ tenantId: 1, url: 'http://x', timeoutMs: 1000 })
-  assert.deepEqual([...tools.keys()].sort(), ['get_test_plan_info', 'read_static_doc', 'write_chapter'])
-  const root = join(dirname(fileURLToPath(import.meta.url)), '..')
-  assert.ok(existsSync(join(root, 'src', 'tools', 'get_test_plan_info.ts')))
+test('每个工具一个文件，且原生取数工具已删除', () => {
   assert.ok(existsSync(join(root, 'src', 'tools', 'read_static_doc.ts')))
   assert.ok(existsSync(join(root, 'src', 'tools', 'write_chapter.ts')))
+  assert.ok(!existsSync(join(root, 'src', 'tools', 'get_test_plan_info.ts')), '取数工具应已删除')
 })
 
-test('注册的工具名与参数 schema 符合约定', () => {
-  const tool = capture({ tenantId: 1, url: 'http://x', timeoutMs: 1000 })
-  assert.equal(tool.name, 'get_test_plan_info')
-  assert.equal((tool.parameters.properties as { planId: { type: string } }).planId.type, 'string')
-  // 必填在编译后的 JSON Schema 中体现为 required 数组。
-  assert.deepEqual(tool.parameters.required, ['planId'])
-})
-
-test('execute 用配置的 tenantId 与 url 发起 POST，完整数据落盘不回传', async () => {
-  rmSync(DATA, { recursive: true, force: true })
-  const tool = capture({ tenantId: 7, url: 'http://example/plan', timeoutMs: 1000 })
-  const payload = { basicInfo: { planName: 'X', planNo: 'N1', productModelName: 'M', targetName: 'T' }, extra: { n: 1 } }
-  const seen = fakeFetch({ code: 0, data: payload })
-  globalThis.fetch = seen.impl
-
-  const value = await tool.execute({ planId: 'p1' }, EXEC) as Record<string, unknown>
-
-  assert.equal(seen.calls.length, 1)
-  assert.equal(seen.calls[0].url, 'http://example/plan')
-  assert.equal(seen.calls[0].init?.method, 'POST')
-  assert.deepEqual(JSON.parse(String(seen.calls[0].init?.body)), { tenantId: 7, planId: 'p1' })
-  assert.equal(value.planId, 'p1')
-  assert.equal(value.tenantId, 7)
-  assert.equal(value.path, 'p1.json')
-  assert.equal(value.data, undefined)
-  assert.deepEqual(value.topKeys, ['basicInfo', 'extra'])
-  assert.deepEqual(value.basic, { planName: 'X', planNo: 'N1', productModelName: 'M', targetName: 'T' })
-  assert.deepEqual(value.adoptedPoints, [])
-  assert.ok(existsSync(String(value.filePath)))
-  assert.deepEqual(JSON.parse(readFileSync(String(value.filePath), 'utf8')), payload)
-  assert.ok(Number(value.lines) > 1)
-  assert.ok(Number(value.bytes) > 0)
-  rmSync(DATA, { recursive: true, force: true })
-  rmSync(STATE, { recursive: true, force: true })
-})
-
-test('落盘文件可用 read_static_doc 分页读取', async () => {
-  rmSync(DATA, { recursive: true, force: true })
-  const tools = captureAll({ tenantId: 1, url: 'http://x', timeoutMs: 1000 })
-  globalThis.fetch = fakeFetch({
-    code: 0,
-    data: { basicInfo: { planName: '航电' }, functionInfo: { functionPoints: [{ pointName: '通电检查', adoptionStatus: 'adopted' }] } },
-  }).impl
-  const got = await tools.get('get_test_plan_info')!.execute({ planId: 'p-read' }, EXEC) as { path: string }
-  const listed = await tools.get('read_static_doc')!.execute({}, {} as ToolRunContext) as { documents: { path: string; kind: string }[] }
-  assert.ok(listed.documents.some((d) => d.path === got.path && d.kind === 'plan'))
-  const page = await tools.get('read_static_doc')!.execute({ path: got.path, offset: 1, limit: 8 }, {} as ToolRunContext) as {
-    action: string
-    kind: string
-    content: string
+test('write_chapter 参数 schema：planId 必填、chapterNo 锁死公文顺序', () => {
+  const tool = captureAll().get('write_chapter')
+  assert.ok(tool, '未注册 write_chapter')
+  const parameters = tool.parameters as {
+    required?: string[]
+    properties: Record<string, { enum?: string[]; type?: string }>
   }
-  assert.equal(page.action, 'read')
-  assert.equal(page.kind, 'plan')
-  assert.match(page.content, /"planName": "航电"/)
-  assert.equal(page.content.split('\n').length, 8)
-  rmSync(DATA, { recursive: true, force: true })
-  rmSync(STATE, { recursive: true, force: true })
+  assert.deepEqual([...parameters.required ?? []].sort(), ['chapterNo', 'content', 'planId'])
+  assert.deepEqual(parameters.properties.chapterNo.enum, DOCUMENT_ORDER)
+  assert.equal(parameters.properties.planId.type, 'string')
+  // planName 可选，因此不在 required 里。
+  assert.equal(parameters.properties.planName.type, 'string')
 })
 
-test('取数成功但缺少 session 时拒绝写进度', async () => {
-  rmSync(DATA, { recursive: true, force: true })
-  const tool = capture({ tenantId: 1, url: 'http://x', timeoutMs: 1000 })
-  globalThis.fetch = fakeFetch({ code: 0, data: { basicInfo: { planName: 'X' } } }).impl
-  await assert.rejects(() => tool.execute({ planId: 'p1' }, {} as ToolRunContext), /缺少会话/)
-  rmSync(DATA, { recursive: true, force: true })
+test('read_static_doc 参数 schema：只读分页', () => {
+  const tool = captureAll().get('read_static_doc')
+  assert.ok(tool, '未注册 read_static_doc')
+  const properties = (tool.parameters as { properties: Record<string, unknown> }).properties
+  assert.deepEqual(Object.keys(properties).sort(), ['limit', 'offset', 'path'])
 })
 
-test('响应缺少 data 时抛出，不回退成整个信封', async () => {
-  const tool = capture({ tenantId: 1, url: 'http://x', timeoutMs: 1000 })
-  globalThis.fetch = fakeFetch({ code: 0, data: null, msg: '无此方案' }).impl
-  await assert.rejects(() => tool.execute({ planId: 'p1' }, {} as ToolRunContext), /缺少 data/)
-})
-
-test('code 非 0 时抛出并带上后端 msg', async () => {
-  const tool = capture({ tenantId: 1, url: 'http://x', timeoutMs: 1000 })
-  globalThis.fetch = fakeFetch({ code: 500, msg: '方案不存在' }).impl
-  await assert.rejects(() => tool.execute({ planId: 'p1' }, {} as ToolRunContext), /方案不存在/)
-})
-
-test('HTTP 4xx/5xx 抛出', async () => {
-  const tool = capture({ tenantId: 1, url: 'http://x', timeoutMs: 1000 })
-  globalThis.fetch = fakeFetch({}, 502).impl
-  await assert.rejects(() => tool.execute({ planId: 'p1' }, {} as ToolRunContext), /HTTP 502/)
-})
-
-test('planId 为空字符串时抛出', async () => {
-  const tool = capture({ tenantId: 1, url: 'http://x', timeoutMs: 1000 })
-  await assert.rejects(() => tool.execute({ planId: '   ' }, {} as ToolRunContext), /不能为空/)
-})
-
-test('Config schema 默认值：tenantId=1、接口 URL 指向 55 环境', () => {
+test('Config schema 默认值', () => {
   const resolved = Config({})
-  assert.equal(resolved.tenantId, 1)
-  assert.equal(resolved.timeoutMs, 30000)
+  assert.equal(resolved.outDir, 'dsh-output')
   assert.equal(resolved.docDir, '')
-  assert.equal(resolved.dataDir, 'dsh-plan-data')
   assert.equal(resolved.stateDir, 'dsh-plan-state')
   assert.equal(resolved.keyPrefix, 'dsh:plan-state:')
   assert.equal(resolved.ttlSeconds, 3 * 24 * 60 * 60)
-  assert.match(resolved.url, /getAiTestPlanData$/)
 })
 
-test('Config schema 允许覆盖 tenantId', () => {
-  assert.equal(Config({ tenantId: 9 }).tenantId, 9)
-})
-
-test('render 产出含 planId 与落盘路径的文本，不含完整 JSON', () => {
-  const tool = capture({ tenantId: 1, url: 'http://x', timeoutMs: 1000 })
-  const blocks = tool.output.render({}, {
-    planId: 'p1',
-    tenantId: 1,
-    path: 'p1.json',
-    filePath: '/tmp/p1.json',
-    lines: 12,
-    bytes: 80,
-    topKeys: ['basicInfo'],
-    basic: { planName: '航电', planNo: '', productModelName: '', targetName: '' },
-    adoptedPoints: [],
-  })
-  assert.equal(blocks[0].type, 'text')
-  if (blocks[0].type === 'text') {
-    assert.match(blocks[0].text, /p1/)
-    assert.match(blocks[0].text, /p1\.json/)
-    assert.match(blocks[0].text, /read_static_doc/)
-    assert.doesNotMatch(blocks[0].text, /"a":1/)
-  }
+test('Config schema 允许覆盖', () => {
+  assert.equal(Config({ outDir: '/tmp/x' }).outDir, '/tmp/x')
+  assert.equal(Config({ ttlSeconds: 60 }).ttlSeconds, 60)
+  assert.equal(Config({ stateDir: 's' }).stateDir, 's')
 })

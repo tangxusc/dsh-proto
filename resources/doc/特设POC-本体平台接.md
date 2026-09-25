@@ -6,9 +6,9 @@
 
 ## **1\. 文档引用**
 
-- [失效分析 V1\.2 本体平台业务接口设计](https://bba12hub36.feishu.cn/wiki/AZ9qww2mDin7gOklZPJcxDS3nTg) 本体平台业务接口设计
+- [失效分析 V1\.2 本体平台业务接口设计](https://<feishu-wiki-url>) 本体平台业务接口设计
 
-- http://120\.79\.209\.254/generate/input?step=basic\&plan=1787020208313 特设原型
+- http://<host>/generate/input?step=basic&plan=<planId> 特设原型
 
 ## **2\. 本体平台接口**
 
@@ -201,7 +201,7 @@ Accept: application/json
     "list": [
       {
         "fileId": "7c6e9d2f-3a41-4b8c-9e52-1f6a7d8c0b35",
-        "fileName": "xxxx航电任务系统设备通电检查技术要求.docx",
+        "fileName": "xxxx发电机设备通电检查技术要求.docx",
         "fileSize": 2726298,
         "fileType": ".docx",
         "previewUrl": "/open-api/ai/v1/special-equipment/file/preview/7c6e9d2f-3a41-4b8c-9e52-1f6a7d8c0b35"
@@ -623,7 +623,7 @@ data: <下方 JSON 的单行序列化结果>
           {
             "sourceType": "design_file",
             "priority": 1,
-            "sourceFileName": "航电任务系统设备通电检查技术要求.docx",
+            "sourceFileName": "发电机设备通电检查技术要求.docx",
             "chapter": "第7章 试验实施",
             "pageNumber": "第30页",
             "location": "7.1 试验准备 · 第3段",
@@ -636,7 +636,7 @@ data: <下方 JSON 的单行序列化结果>
           {
             "sourceType": "knowledge_plan",
             "priority": 2,
-            "sourceFileName": "同类航电任务系统设备通电检查试验方案",
+            "sourceFileName": "同类发电机设备通电检查试验方案",
             "chapter": "第7章 试验实施",
             "pageNumber": null,
             "location": "7.1 试验准备 · 第3段",
@@ -693,7 +693,7 @@ data: <下方 JSON 的单行序列化结果>
               "name": "图4-1 通电检查接线示意图.png",
               "type": "IMAGE",
               "source": "AUTO_EXTRACTED",
-              "originalSourceDocumentName": "航电任务系统设备通电检查技术要求.docx",
+              "originalSourceDocumentName": "发电机设备通电检查技术要求.docx",
               "chapter": "第4章 · 4.2.1 · 第12页 · 图4-1",
               "fileId": "18a4c6e2-5b73-4d90-a1f8-2c6e9b7d3045",
               "imageUrl": "/open-api/ai/v1/special-equipment/file/preview/18a4c6e2-5b73-4d90-a1f8-2c6e9b7d3045"
@@ -753,7 +753,7 @@ data: <下方 JSON 的单行序列化结果>
           {
             "sourceType": "design_file",
             "priority": 1,
-            "sourceFileName": "航电任务系统设备通电检查技术要求.docx",
+            "sourceFileName": "发电机设备通电检查技术要求.docx",
             "chapter": "技术要求 §4.2",
             "pageNumber": "第13页",
             "location": "功能点条款",
@@ -963,7 +963,7 @@ SSE 协议在线上传输的 `event`、`id` 和 `data` 均为文本行；下表�
 ```HTTP
 curl --connect-timeout 10 --max-time 210 \
   -X POST \
-  'http://10.21.1.55:48080/open-api/poc/test-plan/generate' \
+  'http://<host>:<port>/open-api/poc/test-plan/generate' \
   -H 'tenant-id: 1' \
   -H 'X-Request-Id: third-party-syfa-20260827-001' \
   -H 'Content-Type: application/json' \
@@ -1066,12 +1066,12 @@ data: <下方 JSON 的单行序列化结果>
       {
         "chapterNo":"01",
         "name":"范围",
-        "content":"<div contenteditable=\"true\" role=\"textbox\" translate=\"no\" class=\"tiptap ProseMirror\" tabindex=\"0\"><h1>01　范围</h1><p>本方案规定了xxxx航电任务系统设备通电检查的范围、依据、检查内容、组织分工、资源、流程、指标和方法。</p><p>本方案适用于航电任务系统装机状态下的库内地面首次通电、维护后恢复通电及联试前状态确认。检查覆盖设备外观与连接、供电接口与绝缘、上电时序、输入电压与电流、状态告警、加电自检、航电总线通信以及正常断电复查。</p></div>",
+        "content":"<div contenteditable=\"true\" role=\"textbox\" translate=\"no\" class=\"tiptap ProseMirror\" tabindex=\"0\"><h1>01　范围</h1><p>本方案规定了xxxx发电机设备通电检查的范围、依据、检查内容、组织分工、资源、流程、指标和方法。</p><p>本方案适用于发电机装机状态下的库内地面首次通电、维护后恢复通电及联试前状态确认。检查覆盖设备外观与连接、供电接口与绝缘、上电时序、输入电压与电流、状态告警、加电自检、发电机总线通信以及正常断电复查。</p></div>",
         "attachments":[
           {
             "sourceType": "design_file",
             "priority": 1,
-            "sourceFileName": "航电任务系统设备通电检查技术要求.docx",
+            "sourceFileName": "发电机设备通电检查技术要求.docx",
             "chapter": "第7章 试验实施",
             "pageNumber": "第30页",
             "location": "7.1 试验准备 · 第3段",
@@ -1138,7 +1138,7 @@ SSE 协议在线上传输的 `event`、`id` 和 `data` 均为文本行；下表�
 
 ### 第三方获取 AI 使用的试验方案完整数据
 
-请求地址：http://120\.232\.136\.52:8095/admin\-api
+请求地址：http://<host>:<port>/admin-api
 
 |接口|用途|是否返回完整结果|
 |---|---|---|

@@ -1,9 +1,13 @@
 /**
  * 试验方案工具插件（业务扩展）：为 DeepSeek Harness 提供 model-facing 工具。
  *
- * - `get_test_plan_info`：按 planId 取数，完整 JSON 写入 dataDir，工具结果只回摘要与路径。
- * - `read_static_doc`：只读、按需分页查阅 resources/doc 静态资料、章节模版与 dataDir 中的方案 JSON。
+ * - `read_static_doc`：只读、按需分页查阅静态参考资料与章节模版。
  * - `write_chapter`：按公文顺序写入各章全文，程序不改写内容；全部写完落盘为 HTML。
+ *
+ * **方案数据不经过本插件**：它由独立进程的 MCP server 以**资源**形式按需提供
+ * （见 `src/mcp/`），dsh 侧的 `@deepseek-ai/dsh-mcp-resources` 把
+ * `list_mcp_resources` / `list_mcp_resource_templates` / `read_mcp_resource` 交给模型。
+ * 因此本插件不再取数、不落盘方案 JSON、也不需要 `dataDir`。
  *
  * 与基础扩展解耦（`src/base_plugin/`）：
  * - 通用 KV 由基础插件 `redis-kv-store`（ExtKvStore 的 Redis Provider）提供
@@ -24,7 +28,7 @@ import '@deepseek-ai/dsh-system-prompt'
 import { CHAPTERS } from './chapters.ts'
 import { EXT_KV_SERVICE, type ExtKvStore } from './base_plugin/ext-kv-store/ext_kv_store.ts'
 import { registerPrompt } from './prompt.ts'
-import { ALLOWED_EXT, TEMPLATE_EXT, bundledTemplateDir, listRoots, resolveDataDir, resolveDocDir } from './static-docs.ts'
+import { ALLOWED_EXT, TEMPLATE_EXT, bundledTemplateDir, listRoots, resolveDocDir } from './static-docs.ts'
 import {
   DEFAULT_SESSION_KEY_PREFIX,
   DEFAULT_SESSION_TTL_SECONDS,
@@ -32,7 +36,6 @@ import {
   resolveStateDir,
   sessionStore,
 } from './session-state.ts'
-import { registerGetTestPlanInfo } from './tools/get_test_plan_info.ts'
 import { registerReadStaticDoc } from './tools/read_static_doc.ts'
 import { registerWriteChapter } from './tools/write_chapter.ts'
 
@@ -40,20 +43,13 @@ export const name = 'test-plan-tool'
 // 工具注册表与系统提示词注册表是硬依赖：两者就绪后框架才调用 apply。
 export const inject = ['tools', 'systemPrompt']
 
-/** 默认接口地址（部署可用 config.url 覆盖）。 */
-const DEFAULT_URL = 'http://120.232.136.52:8095/admin-api/third/protocol/test-plan/getAiTestPlanData'
-
 /**
  * 工具插件的部署配置。redis 的*连接*配置已移入基础扩展 redis-kv-store；这里只留
- * 业务自身如何用 redis（键前缀、过期时间），以及非 redis 的业务参数。
+ * 业务自身如何用 redis（键前缀、过期时间），以及输出与只读资料的位置。
  */
 export interface Config {
-  tenantId: number
-  url: string
-  timeoutMs: number
   outDir: string
   docDir: string
-  dataDir: string
   stateDir: string
   /** 写章进度存 redis 时的键前缀；默认 dsh:plan-state:。 */
   keyPrefix?: string
@@ -63,12 +59,8 @@ export interface Config {
 
 /** Schemastery 配置 schema；默认值直接写在 schema 中，未提供的字段由框架填充。 */
 export const Config = Schema.object({
-  tenantId: Schema.number().default(1),
-  url: Schema.string().default(DEFAULT_URL),
-  timeoutMs: Schema.number().default(30000),
   outDir: Schema.string().default('dsh-output'),
   docDir: Schema.string().default(''),
-  dataDir: Schema.string().default('dsh-plan-data'),
   stateDir: Schema.string().default('dsh-plan-state'),
   keyPrefix: Schema.string().default(DEFAULT_SESSION_KEY_PREFIX),
   ttlSeconds: Schema.number().default(DEFAULT_SESSION_TTL_SECONDS),
@@ -91,7 +83,6 @@ function readExtKvStore(ctx: Context): ExtKvStore | undefined {
  */
 export function apply(ctx: Context, config: Config): void {
   const docDir = resolveDocDir(config.docDir)
-  const dataDir = resolveDataDir(config.dataDir)
   const stateDir = resolveStateDir(config.stateDir)
   const templateDir = bundledTemplateDir()
 
@@ -104,8 +95,7 @@ export function apply(ctx: Context, config: Config): void {
       })
     : fileStore(stateDir)
 
-  registerGetTestPlanInfo(ctx, { ...config, dataDir, stateDir, store })
-  registerReadStaticDoc(ctx, docDir, dataDir, templateDir)
+  registerReadStaticDoc(ctx, docDir, templateDir)
   registerWriteChapter(ctx, { ...config, stateDir, store })
   registerPrompt(ctx, CHAPTERS, listRoots([
     { dir: docDir, kind: 'static', exts: ALLOWED_EXT },

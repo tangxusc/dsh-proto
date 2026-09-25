@@ -11,9 +11,6 @@ import { fileURLToPath } from 'node:url'
 /** 静态参考资料允许的扩展名。 */
 export const ALLOWED_EXT = new Set(['.md', '.txt'])
 
-/** 取数落盘的方案 JSON 允许的扩展名。 */
-export const PLAN_EXT = new Set(['.json'])
-
 /** 章节模版允许的扩展名（只读参照，不渲染）。 */
 export const TEMPLATE_EXT = new Set(['.html'])
 
@@ -32,7 +29,7 @@ export interface DocEntry {
   kind: string
 }
 
-/** 可读取的根：静态资料、取数落盘、章节模版。 */
+/** 可读取的根：静态资料、章节模版。 */
 export interface ReadableRoot {
   dir: string
   kind: string
@@ -81,16 +78,6 @@ export function bundledTemplateDir(): string {
 export function resolveDocDir(configured: string | undefined): string {
   const raw = typeof configured === 'string' ? configured.trim() : ''
   return raw ? resolve(raw) : bundledDocDir()
-}
-
-/**
- * 解析取数落盘目录。空值用进程 cwd 下的 dsh-plan-data。
- * @param configured - config.dataDir。
- * @returns 绝对路径。
- */
-export function resolveDataDir(configured: string | undefined): string {
-  const raw = typeof configured === 'string' ? configured.trim() : ''
-  return resolve(raw || 'dsh-plan-data')
 }
 
 /**

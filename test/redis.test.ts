@@ -110,7 +110,7 @@ test('sessionStore 在通用 KV 之上按 prefix+sessionId 写读，缺键为空
     assert.equal(empty.planId, '')
     assert.deepEqual(empty.chapters, {})
 
-    await store.save('s1', { planId: 'p1', basic: { a: 1 }, points: ['x'], chapters: { cover: '<p>hi</p>' }, planFile: '01.html' })
+    await store.save('s1', { planId: 'p1', basic: { a: 1 }, chapters: { cover: '<p>hi</p>' } })
     const loaded = await store.load('s1')
     assert.equal(loaded.planId, 'p1')
     assert.equal(loaded.chapters.cover, '<p>hi</p>')

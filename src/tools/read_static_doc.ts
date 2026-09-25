@@ -1,8 +1,10 @@
 /**
- * read_static_doc：只读查阅静态参考资料、章节模版，以及 get_test_plan_info 落盘的方案 JSON。
+ * read_static_doc：只读查阅静态参考资料与章节模版。
  *
  * 不带 path 列出目录；带 path 按行分页读取。路径锁在对应根目录内，不能写入。
- * .md/.txt 走 docDir；.json 走 dataDir；.html 走章节模版目录（只参照，不渲染）。
+ * .md/.txt 走 docDir；.html 走章节模版目录（只参照，不渲染）。
+ *
+ * 方案数据不在这里 —— 它由独立 MCP server 以资源形式提供，见 `src/mcp/`。
  */
 
 import type { Context } from '@deepseek-ai/cordis'
@@ -12,7 +14,6 @@ import {
   ALLOWED_EXT,
   DEFAULT_PAGE_LINES,
   MAX_PAGE_LINES,
-  PLAN_EXT,
   TEMPLATE_EXT,
   catalogBrief,
   listRoots,
@@ -34,13 +35,11 @@ const emptyRead = {
  * 注册 read_static_doc。
  * @param ctx - 携带工具注册表的插件上下文。
  * @param docDir - 静态文档根目录。
- * @param dataDir - get_test_plan_info 落盘目录。
  * @param templateDir - 章节模版目录（只读参照）。
  */
-export function registerReadStaticDoc(ctx: Context, docDir: string, dataDir: string, templateDir: string): void {
+export function registerReadStaticDoc(ctx: Context, docDir: string, templateDir: string): void {
   const roots = [
     { dir: docDir, kind: 'static', exts: ALLOWED_EXT },
-    { dir: dataDir, kind: 'plan', exts: PLAN_EXT },
     { dir: templateDir, kind: 'template', exts: TEMPLATE_EXT },
   ]
   const documents = listRoots(roots)
@@ -49,12 +48,12 @@ export function registerReadStaticDoc(ctx: Context, docDir: string, dataDir: str
     description:
       '只读查阅文件，不能修改。不传 path 列出目录；传入 path 按行分页读取正文。'
       + `单次最多 ${MAX_PAGE_LINES} 行，默认 ${DEFAULT_PAGE_LINES} 行；hasMore 为 true 时用 nextOffset 继续读。`
-      + '.md/.txt 是静态参考资料；.json 是 get_test_plan_info 写入的方案数据；.html 是章节模版（会更新，以当前文件为准）。'
+      + '.md/.txt 是静态参考资料；.html 是章节模版（会更新，以当前文件为准）。'
       + '当前目录：\n' + catalogBrief(documents),
     parameters: {
       path: {
         type: 'string',
-        description: '相对路径，如 业务术语解释.md、cover.html 或取数返回的 xxx.json。省略或空串则只列出目录。',
+        description: '相对路径，如 业务术语解释.md 或 cover.html。省略或空串则只列出目录。',
       },
       offset: {
         type: 'number',

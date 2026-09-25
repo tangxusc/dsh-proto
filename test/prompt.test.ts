@@ -1,5 +1,5 @@
 /**
- * 提示词段单测：串联工具、模版为准、不规定各章写什么。
+ * 提示词段单测：读资源 → 按需切片 → 带 planId 逐章写；模版为准，不规定各章内容。
  */
 
 import { test } from 'node:test'
@@ -24,7 +24,11 @@ function captureSection(): PromptSection[] {
     tools: { register: () => {} },
     systemPrompt: { section: (s: PromptSection) => { sections.push(s) } },
   }
-  apply(ctx as unknown as Context, { tenantId: 1, url: 'http://x', timeoutMs: 1000, outDir: 'dsh-output-test', docDir: '', dataDir: 'dsh-plan-data', stateDir: 'dsh-plan-state' })
+  apply(ctx as unknown as Context, {
+    outDir: 'dsh-output-test',
+    docDir: '',
+    stateDir: 'dsh-plan-state-test',
+  })
   return sections
 }
 
@@ -41,12 +45,29 @@ test('提示词段的 order 是有限数（外部插件不能用预定义键）'
   assert.ok(s.text.length > 0)
 })
 
-test('提示词串联两个工具：先取数、再逐章、最后落盘', () => {
+test('提示词先读资源、再逐章写、最后给路径', () => {
   const text = buildPrompt(CHAPTERS)
-  assert.ok(text.indexOf('get_test_plan_info') < text.indexOf('write_chapter'), '应先取数再写章')
+  assert.ok(text.indexOf('read_mcp_resource') < text.indexOf('write_chapter'), '应先读资源再写章')
+  assert.match(text, /plan:\/\/plans/)
   assert.match(text, /逐章/)
   assert.match(text, /documentPath/)
   assert.match(text, /12 章/)
+})
+
+test('提示词要求按需读切片，不要整篇读 raw', () => {
+  const text = buildPrompt(CHAPTERS)
+  assert.match(text, /points\//)
+  assert.match(text, /按需/)
+  assert.match(text, /raw/)
+  assert.match(text, /几十倍/)
+})
+
+test('提示词要求每次 write_chapter 都带 planId，封面带 planName', () => {
+  const text = buildPrompt(CHAPTERS)
+  assert.match(text, /planId/)
+  assert.match(text, /planName/)
+  assert.match(text, /cover/)
+  assert.match(text, /清空已写章节/)
 })
 
 test('提示词交代只读资料目录，不把正文写进提示词', () => {
@@ -55,12 +76,6 @@ test('提示词交代只读资料目录，不把正文写进提示词', () => {
   assert.match(text, /业务术语解释\.md/)
   assert.match(text, /只读/)
   assert.doesNotMatch(text, /功能\/性能边界/)
-})
-
-test('提示词交代取数落盘后分页读，不把全文塞进工具结果', () => {
-  const text = buildPrompt(CHAPTERS)
-  assert.match(text, /完整 JSON 写入固定目录/)
-  assert.match(text, /\.json 是方案数据/)
 })
 
 test('提示词以当前模版为准，不规定章节内容', () => {

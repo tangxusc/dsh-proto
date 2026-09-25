@@ -1,5 +1,5 @@
 /**
- * 提示词段：取数落盘 → 读当前模版与方案数据 → 按序把各章全文交给 write_chapter。
+ * 提示词段：读 MCP 方案资源 → 按需读切片 → 带 planId 逐章写全文。
  *
  * 章节写什么以 resources/templates/dynamic-v1 当前文件为准，提示词不规定各章内容。
  */
@@ -32,18 +32,23 @@ export function buildPrompt(chapters: readonly Chapter[], documents: readonly Do
   return `【试验方案文档生成】
 当用户要求生成试验方案文档时，按以下顺序使用工具：
 
-1. 用 get_test_plan_info 取数，传入用户给出的 planId。完整 JSON 写入固定目录，工具结果
-   只有摘要和 path；用 read_static_doc 按该 path 分页读方案数据。取数会清空此前已写章节。
+1. 取数：方案数据由 MCP server 以**资源**形式提供。先 list_mcp_resource_templates 看模板，
+   再 read_mcp_resource 读方案目录 plan://plans/<planId>（含方案基本信息与功能点清单），
+   然后**按需**读切片 plan://plans/<planId>/points/<index> 或 .../tests。
+   不要把 plan://plans/<planId>/raw 整篇读进来 —— 它含全部元数据，体量是切片的几十倍。
+   用户给出的 planId 直接拼进 URI。
 2. 按公文顺序逐章写入，共 ${chapters.length} 章：${brief}。
-   每一章：先 read_static_doc 读对应模版（cover.html / 01.html …），再结合方案数据生成
-   该章全文，调用 write_chapter（chapterNo 必须等于返回值 next，第一次为 cover；
-   content 为该章全文）。模版会更新，以你当前读到的为准。程序不改写 content，也不规定
-   这一章必须写什么。不得跳章、倒序或并行写多章。
+   每一章：先 read_static_doc 读对应模版（cover.html / 01.html …），再结合已读到的方案数据
+   生成该章全文，调用 write_chapter。每次都要带 planId（取自资源 URI）；
+   chapterNo 必须等于返回值 next，第一次为 cover；content 为该章全文；
+   写封面时一并传 planName。模版会更新，以你当前读到的为准。程序不改写 content，
+   也不规定这一章必须写什么。不得跳章、倒序或并行写多章。
+   换 planId 会清空已写章节；需要整篇重做时，从 cover 重新开始。
 3. 全部写完后，write_chapter 给出 documentPath，告知用户。
 
 只读资料（按需分页读，不要一次灌完整本）：
 ${catalog}
-.html 是章节模版；.json 是方案数据；.md/.txt 是静态资料。不传 path 可列出目录。
+.html 是章节模版；.md/.txt 是静态资料。不传 path 可列出目录。
 
 harness中多轮对话交互,使用中文
 不要讨论与试验方案文档生成无关的内容`

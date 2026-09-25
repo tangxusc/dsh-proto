@@ -1,0 +1,888 @@
+{
+  "basicInfo": {
+    "id": "example-plan-001",
+    "planNo": "PLAN-EXAMPLE-001",
+    "planName": "示例发电机设备通电检查试验方案",
+    "status": "editing",
+    "completedStep": 3,
+    "productModelName": "示例产品型号",
+    "targetName": "示例试验对象",
+    "functionName": "设备通电检查",
+    "planType": "test",
+    "testType": "groundTest",
+    "testStages": [],
+    "implementationUnit": "示例单位",
+    "objectiveDescription": "验证发电机通电前连接与绝缘状态、上电时序、供电参数、自检、状态指示、告警及发电机总线通信满足技术要求，确保设备可安全投入后续联试。",
+    "historyPlanId": null,
+    "historyPlanName": null,
+    "sourceFiles": [
+      {
+        "id": "example-id-0000",
+        "fileId": "example-id-0000",
+        "fileName": "示例设计文件.docx",
+        "fileType": "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+        "fileSize": 16974,
+        "previewUrl": null,
+        "parseStatus": "success",
+        "parseErrorMessage": null,
+        "parsedTime": 1789466941536,
+        "primary": true,
+        "content": null,
+        "sourceType": "knowledge_file",
+        "metadata": null
+      }
+    ]
+  },
+  "functionInfo": {
+    "planId": "example-plan-001",
+    "status": "editing",
+    "functionTestInfos": [
+      {
+        "id": "example-id-0000",
+        "contentType": "text",
+        "contentName": "试验对象（配试）",
+        "contentGroup": "test_object",
+        "isSuggestion": false,
+        "adoptionStatus": "adopted",
+        "sortNo": 0,
+        "designFileCount": 2,
+        "content": {
+          "text": "发电机装机状态\n发电机及其配套供电、维护和发电机总线接口",
+          "resourceItems": [],
+          "attachments": []
+        },
+        "suggestions": [],
+        "sourceReferences": [
+          {
+            "id": "example-id-0000",
+            "sourceType": "design_file",
+            "priority": 1,
+            "sourceFileName": "示例设计文件.docx",
+            "chapter": "01 范围",
+            "pageNumber": null,
+            "location": "01 范围",
+            "recommendation": "设计文件提供「试验对象」的内容依据。",
+            "adoptedContent": "发电机装机状态",
+            "contentDescription": null,
+            "sortNo": 0
+          },
+          {
+            "id": "example-id-0000",
+            "sourceType": "design_file",
+            "priority": 1,
+            "sourceFileName": "示例设计文件.docx",
+            "chapter": null,
+            "pageNumber": null,
+            "location": null,
+            "recommendation": "设计文件提供「试验对象」的内容依据。",
+            "adoptedContent": "发电机及其配套供电、维护和发电机总线接口",
+            "contentDescription": null,
+            "sortNo": 1
+          }
+        ],
+        "duplicateSourceReferences": []
+      },
+      {
+        "id": "example-id-0000",
+        "contentType": "text",
+        "contentName": "前置条件",
+        "contentGroup": "precondition",
+        "isSuggestion": false,
+        "adoptionStatus": "adopted",
+        "sortNo": 0,
+        "designFileCount": 6,
+        "content": {
+          "text": "用户具有查看权限；发起生成时还须具有生成权限。\n当前方案存在已保存成功的功能项结果基线，且当前已保存输入版本高于该结果基线关联的输入版本。\n试验输入已保存；历史方案参考的引用规则见《试验方案基本信息录入》FR-INPUT-003A。\n试验输入已保存；历史方案参考的引用规则见《试验方案基本信息录入》FR-INPUT-003A。\nFR-GEN-001 生成门禁通过,用户点击“生成功能项试验信息”或确认“重新生成功能项试验信息”。\n试验输入已保存且无修改、全部试验依据文件解析成功、存在功能项试验信息、正式功能点数量为 1~100、无局部草稿且无生成或保存任务。\n结果与基线不一致时先保存；正文生成任务须根据服务端返回的真实总体进度、当前阶段和阶段状态进行处理。",
+          "resourceItems": [],
+          "attachments": []
+        },
+        "suggestions": [],
+        "sourceReferences": [
+          {
+            "id": "example-id-0000",
+            "sourceType": "design_file",
+            "priority": 1,
+            "sourceFileName": "示例设计文件.docx",
+            "chapter": null,
+            "pageNumber": null,
+            "location": null,
+            "recommendation": "设计文件提供「前置条件」的内容依据。",
+            "adoptedContent": "用户具有查看权限；发起生成时还须具有生成权限。\n当前方案存在已保存成功的功能项结果基线，且当前已保存输入版本高于该结果基线关联的输入版本。",
+            "contentDescription": null,
+            "sortNo": 0
+          },
+          {
+            "id": "example-id-0000",
+            "sourceType": "design_file",
+            "priority": 1,
+            "sourceFileName": "示例设计文件.docx",
+            "chapter": null,
+            "pageNumber": null,
+            "location": null,
+            "recommendation": "设计文件提供「前置条件」的内容依据。",
+            "adoptedContent": "试验输入已保存；历史方案参考的引用规则见《试验方案基本信息录入》FR-INPUT-003A。",
+            "contentDescription": null,
+            "sortNo": 1
+          },
+          {
+            "id": "example-id-0000",
+            "sourceType": "design_file",
+            "priority": 1,
+            "sourceFileName": "示例设计文件.docx",
+            "chapter": null,
+            "pageNumber": null,
+            "location": null,
+            "recommendation": "设计文件提供「前置条件」的内容依据。",
+            "adoptedContent": "试验输入已保存；历史方案参考的引用规则见《试验方案基本信息录入》FR-INPUT-003A。",
+            "contentDescription": null,
+            "sortNo": 2
+          },
+          {
+            "id": "example-id-0000",
+            "sourceType": "design_file",
+            "priority": 1,
+            "sourceFileName": "示例设计文件.docx",
+            "chapter": null,
+            "pageNumber": null,
+            "location": null,
+            "recommendation": "设计文件提供「前置条件」的内容依据。",
+            "adoptedContent": "FR-GEN-001 生成门禁通过,用户点击“生成功能项试验信息”或确认“重新生成功能项试验信息”。",
+            "contentDescription": null,
+            "sortNo": 3
+          },
+          {
+            "id": "example-id-0000",
+            "sourceType": "design_file",
+            "priority": 1,
+            "sourceFileName": "示例设计文件.docx",
+            "chapter": null,
+            "pageNumber": null,
+            "location": null,
+            "recommendation": "设计文件提供「前置条件」的内容依据。",
+            "adoptedContent": "试验输入已保存且无修改、全部试验依据文件解析成功、存在功能项试验信息、正式功能点数量为 1~100、无局部草稿且无生成或保存任务。",
+            "contentDescription": null,
+            "sortNo": 4
+          },
+          {
+            "id": "example-id-0000",
+            "sourceType": "design_file",
+            "priority": 1,
+            "sourceFileName": "示例设计文件.docx",
+            "chapter": null,
+            "pageNumber": null,
+            "location": null,
+            "recommendation": "设计文件提供「前置条件」的内容依据。",
+            "adoptedContent": "结果与基线不一致时先保存；正文生成任务须根据服务端返回的真实总体进度、当前阶段和阶段状态进行处理。",
+            "contentDescription": null,
+            "sortNo": 5
+          }
+        ],
+        "duplicateSourceReferences": []
+      }
+    ],
+    "functionPoints": [
+      {
+        "id": "example-id-0000",
+        "pointName": "通电前外观与连接检查",
+        "pointOrigin": "generated",
+        "sourceType": "design_file",
+        "adoptionStatus": "adopted",
+        "sourceReferences": [
+          {
+            "id": "example-id-0000",
+            "sourceType": "design_file",
+            "priority": 1,
+            "sourceFileName": "示例设计文件.docx",
+            "chapter": "11 试验指标要求及试验方法",
+            "pageNumber": null,
+            "location": "11 试验指标要求及试验方法 · 11.3 各功能点指标要求及试验方法 · 11.3.1 通电前外观与连接检查",
+            "recommendation": "设计文件提供「确认设备外观、安装、接地、连接器锁紧及线缆标识正确,无损伤、松动和异物」的内容依据。",
+            "adoptedContent": "确认设备外观、安装、接地、连接器锁紧及线缆标识正确,无损伤、松动和异物\n设备断电、外部电源隔离且静电防护到位\n检查供电、接地、总线及维护接口连接状态\n接口状态与操作结果一致,反馈完整且无非预期跳变",
+            "contentDescription": null,
+            "sortNo": 0
+          },
+          {
+            "id": "example-id-0000",
+            "sourceType": "design_file",
+            "priority": 1,
+            "sourceFileName": "示例设计文件.docx",
+            "chapter": "11 试验指标要求及试验方法",
+            "pageNumber": null,
+            "location": "11 试验指标要求及试验方法 · 11.3 各功能点指标要求及试验方法 · 11.3.1 通电前外观与连接检查",
+            "recommendation": "设计文件提供「连接器锁紧标记完整,接地搭接电阻满足技术要求」的内容依据。",
+            "adoptedContent": "连接器锁紧标记完整,接地搭接电阻满足技术要求\n不得带电插拔,未通过检查不得进入下一步\n保持断电→检查安装外观→核对插头插座→确认接地→双人复核\n连接器锁紧到位,设备与线束无变形、破损和异物\n先执行操作1,其响应确认正常后方可执行操作2;操作1响应异常时不得执行操作2,立即中止并保留现场数据",
+            "contentDescription": null,
+            "sortNo": 1
+          }
+        ],
+        "fields": [
+          {
+            "id": "example-id-0000",
+            "fieldType": "function_performance_requirement",
+            "fieldName": "功能/性能要求",
+            "fieldOrigin": "generated",
+            "adoptionStatus": "adopted",
+            "sortNo": 1,
+            "designFileCount": 2,
+            "fieldContent": {
+              "text": "确认设备外观、安装、接地、连接器锁紧及线缆标识正确,无损伤、松动和异物\n连接器锁紧标记完整,接地搭接电阻满足技术要求",
+              "attachments": []
+            },
+            "suggestions": [],
+            "sourceReferences": [
+              {
+                "id": "example-id-0000",
+                "sourceType": "design_file",
+                "priority": 1,
+                "sourceFileName": "示例设计文件.docx",
+                "chapter": "11 试验指标要求及试验方法",
+                "pageNumber": null,
+                "location": "11 试验指标要求及试验方法 · 11.3 各功能点指标要求及试验方法 · 11.3.1 通电前外观与连接检查",
+                "recommendation": "设计文件提供「功能/性能要求」的内容依据。",
+                "adoptedContent": "确认设备外观、安装、接地、连接器锁紧及线缆标识正确,无损伤、松动和异物",
+                "contentDescription": null,
+                "sortNo": 0
+              },
+              {
+                "id": "example-id-0000",
+                "sourceType": "design_file",
+                "priority": 1,
+                "sourceFileName": "示例设计文件.docx",
+                "chapter": "11 试验指标要求及试验方法",
+                "pageNumber": null,
+                "location": "11 试验指标要求及试验方法 · 11.3 各功能点指标要求及试验方法 · 11.3.1 通电前外观与连接检查",
+                "recommendation": "设计文件提供「功能/性能要求」的内容依据。",
+                "adoptedContent": "连接器锁紧标记完整,接地搭接电阻满足技术要求",
+                "contentDescription": null,
+                "sortNo": 1
+              }
+            ]
+          },
+          {
+            "id": "example-id-0000",
+            "fieldType": "function_performance_requirement",
+            "fieldName": "功能/性能边界",
+            "fieldOrigin": "generated",
+            "adoptionStatus": "adopted",
+            "sortNo": 1,
+            "designFileCount": 2,
+            "fieldContent": {
+              "text": "设备断电、外部电源隔离且静电防护到位\n不得带电插拔,未通过检查不得进入下一步",
+              "attachments": []
+            },
+            "suggestions": [],
+            "sourceReferences": [
+              {
+                "id": "example-id-0000",
+                "sourceType": "design_file",
+                "priority": 1,
+                "sourceFileName": "示例设计文件.docx",
+                "chapter": "11 试验指标要求及试验方法",
+                "pageNumber": null,
+                "location": "11 试验指标要求及试验方法 · 11.3 各功能点指标要求及试验方法 · 11.3.1 通电前外观与连接检查",
+                "recommendation": "设计文件提供「功能/性能边界」的内容依据。",
+                "adoptedContent": "设备断电、外部电源隔离且静电防护到位",
+                "contentDescription": null,
+                "sortNo": 0
+              },
+              {
+                "id": "example-id-0000",
+                "sourceType": "design_file",
+                "priority": 1,
+                "sourceFileName": "示例设计文件.docx",
+                "chapter": "11 试验指标要求及试验方法",
+                "pageNumber": null,
+                "location": "11 试验指标要求及试验方法 · 11.3 各功能点指标要求及试验方法 · 11.3.1 通电前外观与连接检查",
+                "recommendation": "设计文件提供「功能/性能边界」的内容依据。",
+                "adoptedContent": "不得带电插拔,未通过检查不得进入下一步",
+                "contentDescription": null,
+                "sortNo": 1
+              }
+            ]
+          },
+          {
+            "id": "example-id-0000",
+            "fieldType": "function_performance_requirement",
+            "fieldName": "操作",
+            "fieldOrigin": "generated",
+            "adoptionStatus": "adopted",
+            "sortNo": 1,
+            "designFileCount": 2,
+            "fieldContent": {
+              "text": "检查供电、接地、总线及维护接口连接状态\n保持断电→检查安装外观→核对插头插座→确认接地→双人复核",
+              "attachments": []
+            },
+            "suggestions": [],
+            "sourceReferences": [
+              {
+                "id": "example-id-0000",
+                "sourceType": "design_file",
+                "priority": 1,
+                "sourceFileName": "示例设计文件.docx",
+                "chapter": "11 试验指标要求及试验方法",
+                "pageNumber": null,
+                "location": "11 试验指标要求及试验方法 · 11.3 各功能点指标要求及试验方法 · 11.3.1 通电前外观与连接检查",
+                "recommendation": "设计文件提供「操作」的内容依据。",
+                "adoptedContent": "检查供电、接地、总线及维护接口连接状态",
+                "contentDescription": null,
+                "sortNo": 0
+              },
+              {
+                "id": "example-id-0000",
+                "sourceType": "design_file",
+                "priority": 1,
+                "sourceFileName": "示例设计文件.docx",
+                "chapter": "11 试验指标要求及试验方法",
+                "pageNumber": null,
+                "location": "11 试验指标要求及试验方法 · 11.3 各功能点指标要求及试验方法 · 11.3.1 通电前外观与连接检查",
+                "recommendation": "设计文件提供「操作」的内容依据。",
+                "adoptedContent": "保持断电→检查安装外观→核对插头插座→确认接地→双人复核",
+                "contentDescription": null,
+                "sortNo": 1
+              }
+            ]
+          },
+          {
+            "id": "example-id-0000",
+            "fieldType": "function_performance_requirement",
+            "fieldName": "响应",
+            "fieldOrigin": "generated",
+            "adoptionStatus": "adopted",
+            "sortNo": 1,
+            "designFileCount": 2,
+            "fieldContent": {
+              "text": "接口状态与操作结果一致,反馈完整且无非预期跳变\n连接器锁紧到位,设备与线束无变形、破损和异物",
+              "attachments": []
+            },
+            "suggestions": [],
+            "sourceReferences": [
+              {
+                "id": "example-id-0000",
+                "sourceType": "design_file",
+                "priority": 1,
+                "sourceFileName": "示例设计文件.docx",
+                "chapter": "11 试验指标要求及试验方法",
+                "pageNumber": null,
+                "location": "11 试验指标要求及试验方法 · 11.3 各功能点指标要求及试验方法 · 11.3.1 通电前外观与连接检查",
+                "recommendation": "设计文件提供「响应」的内容依据。",
+                "adoptedContent": "接口状态与操作结果一致,反馈完整且无非预期跳变",
+                "contentDescription": null,
+                "sortNo": 0
+              },
+              {
+                "id": "example-id-0000",
+                "sourceType": "design_file",
+                "priority": 1,
+                "sourceFileName": "示例设计文件.docx",
+                "chapter": "11 试验指标要求及试验方法",
+                "pageNumber": null,
+                "location": "11 试验指标要求及试验方法 · 11.3 各功能点指标要求及试验方法 · 11.3.1 通电前外观与连接检查",
+                "recommendation": "设计文件提供「响应」的内容依据。",
+                "adoptedContent": "连接器锁紧到位,设备与线束无变形、破损和异物",
+                "contentDescription": null,
+                "sortNo": 1
+              }
+            ]
+          },
+          {
+            "id": "example-id-0000",
+            "fieldType": "logic_relation",
+            "fieldName": "逻辑关系",
+            "fieldOrigin": "generated",
+            "adoptionStatus": "adopted",
+            "sortNo": 2,
+            "designFileCount": 1,
+            "fieldContent": {
+              "text": "先执行操作1,其响应确认正常后方可执行操作2;操作1响应异常时不得执行操作2,立即中止并保留现场数据",
+              "attachments": []
+            },
+            "suggestions": [],
+            "sourceReferences": [
+              {
+                "id": "example-id-0000",
+                "sourceType": "design_file",
+                "priority": 1,
+                "sourceFileName": "示例设计文件.docx",
+                "chapter": "11 试验指标要求及试验方法",
+                "pageNumber": null,
+                "location": "11 试验指标要求及试验方法 · 11.3 各功能点指标要求及试验方法 · 11.3.1 通电前外观与连接检查",
+                "recommendation": "设计文件提供「逻辑关系」的内容依据。",
+                "adoptedContent": "先执行操作1,其响应确认正常后方可执行操作2;操作1响应异常时不得执行操作2,立即中止并保留现场数据",
+                "contentDescription": null,
+                "sortNo": 0
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "id": "example-id-0000",
+        "pointName": "供电接口与绝缘检查",
+        "pointOrigin": "generated",
+        "sourceType": "design_file",
+        "adoptionStatus": "adopted",
+        "sourceReferences": [
+          {
+            "id": "example-id-0000",
+            "sourceType": "design_file",
+            "priority": 1,
+            "sourceFileName": "示例设计文件.docx",
+            "chapter": "11 试验指标要求及试验方法",
+            "pageNumber": null,
+            "location": "11 试验指标要求及试验方法 · 11.3 各功能点指标要求及试验方法 · 11.3.2 供电接口与绝缘检查",
+            "recommendation": "设计文件提供「确认供电极性、回路通断、对地绝缘及接地连续性符合技术要求」的内容依据。",
+            "adoptedContent": "确认供电极性、回路通断、对地绝缘及接地连续性符合技术要求\n设备保持断电,敏感电路按技术文件要求隔离后测量\n在电源输入端和规定测试点完成极性、通断及绝缘测量\n接口状态与操作结果一致,反馈完整且无非预期跳变",
+            "contentDescription": null,
+            "sortNo": 0
+          },
+          {
+            "id": "example-id-0000",
+            "sourceType": "design_file",
+            "priority": 1,
+            "sourceFileName": "示例设计文件.docx",
+            "chapter": "11 试验指标要求及试验方法",
+            "pageNumber": null,
+            "location": "11 试验指标要求及试验方法 · 11.3 各功能点指标要求及试验方法 · 11.3.2 供电接口与绝缘检查",
+            "recommendation": "设计文件提供「供电极性正确,绝缘电阻及搭接电阻满足技术要求限值」的内容依据。",
+            "adoptedContent": "供电极性正确,绝缘电阻及搭接电阻满足技术要求限值\n绝缘测试电压不得施加至禁止测试的电子接口\n断开供电→隔离敏感接口→完成测量→确认无残余电荷→恢复连接\n连接器和测试点无放电痕迹、松动或损伤\n先执行操作1,其响应确认正常后方可执行操作2;操作1响应异常时不得执行操作2,立即中止并保留现场数据",
+            "contentDescription": null,
+            "sortNo": 1
+          }
+        ],
+        "fields": [
+          {
+            "id": "example-id-0000",
+            "fieldType": "function_performance_requirement",
+            "fieldName": "功能/性能要求",
+            "fieldOrigin": "generated",
+            "adoptionStatus": "adopted",
+            "sortNo": 1,
+            "designFileCount": 2,
+            "fieldContent": {
+              "text": "确认供电极性、回路通断、对地绝缘及接地连续性符合技术要求\n供电极性正确,绝缘电阻及搭接电阻满足技术要求限值",
+              "attachments": []
+            },
+            "suggestions": [],
+            "sourceReferences": [
+              {
+                "id": "example-id-0000",
+                "sourceType": "design_file",
+                "priority": 1,
+                "sourceFileName": "示例设计文件.docx",
+                "chapter": "11 试验指标要求及试验方法",
+                "pageNumber": null,
+                "location": "11 试验指标要求及试验方法 · 11.3 各功能点指标要求及试验方法 · 11.3.2 供电接口与绝缘检查",
+                "recommendation": "设计文件提供「功能/性能要求」的内容依据。",
+                "adoptedContent": "确认供电极性、回路通断、对地绝缘及接地连续性符合技术要求",
+                "contentDescription": null,
+                "sortNo": 0
+              },
+              {
+                "id": "example-id-0000",
+                "sourceType": "design_file",
+                "priority": 1,
+                "sourceFileName": "示例设计文件.docx",
+                "chapter": "11 试验指标要求及试验方法",
+                "pageNumber": null,
+                "location": "11 试验指标要求及试验方法 · 11.3 各功能点指标要求及试验方法 · 11.3.2 供电接口与绝缘检查",
+                "recommendation": "设计文件提供「功能/性能要求」的内容依据。",
+                "adoptedContent": "供电极性正确,绝缘电阻及搭接电阻满足技术要求限值",
+                "contentDescription": null,
+                "sortNo": 1
+              }
+            ]
+          },
+          {
+            "id": "example-id-0000",
+            "fieldType": "function_performance_requirement",
+            "fieldName": "功能/性能边界",
+            "fieldOrigin": "generated",
+            "adoptionStatus": "adopted",
+            "sortNo": 1,
+            "designFileCount": 2,
+            "fieldContent": {
+              "text": "设备保持断电,敏感电路按技术文件要求隔离后测量\n绝缘测试电压不得施加至禁止测试的电子接口",
+              "attachments": []
+            },
+            "suggestions": [],
+            "sourceReferences": [
+              {
+                "id": "example-id-0000",
+                "sourceType": "design_file",
+                "priority": 1,
+                "sourceFileName": "示例设计文件.docx",
+                "chapter": "11 试验指标要求及试验方法",
+                "pageNumber": null,
+                "location": "11 试验指标要求及试验方法 · 11.3 各功能点指标要求及试验方法 · 11.3.2 供电接口与绝缘检查",
+                "recommendation": "设计文件提供「功能/性能边界」的内容依据。",
+                "adoptedContent": "设备保持断电,敏感电路按技术文件要求隔离后测量",
+                "contentDescription": null,
+                "sortNo": 0
+              },
+              {
+                "id": "example-id-0000",
+                "sourceType": "design_file",
+                "priority": 1,
+                "sourceFileName": "示例设计文件.docx",
+                "chapter": "11 试验指标要求及试验方法",
+                "pageNumber": null,
+                "location": "11 试验指标要求及试验方法 · 11.3 各功能点指标要求及试验方法 · 11.3.2 供电接口与绝缘检查",
+                "recommendation": "设计文件提供「功能/性能边界」的内容依据。",
+                "adoptedContent": "绝缘测试电压不得施加至禁止测试的电子接口",
+                "contentDescription": null,
+                "sortNo": 1
+              }
+            ]
+          },
+          {
+            "id": "example-id-0000",
+            "fieldType": "function_performance_requirement",
+            "fieldName": "操作",
+            "fieldOrigin": "generated",
+            "adoptionStatus": "adopted",
+            "sortNo": 1,
+            "designFileCount": 2,
+            "fieldContent": {
+              "text": "在电源输入端和规定测试点完成极性、通断及绝缘测量\n断开供电→隔离敏感接口→完成测量→确认无残余电荷→恢复连接",
+              "attachments": []
+            },
+            "suggestions": [],
+            "sourceReferences": [
+              {
+                "id": "example-id-0000",
+                "sourceType": "design_file",
+                "priority": 1,
+                "sourceFileName": "示例设计文件.docx",
+                "chapter": "11 试验指标要求及试验方法",
+                "pageNumber": null,
+                "location": "11 试验指标要求及试验方法 · 11.3 各功能点指标要求及试验方法 · 11.3.2 供电接口与绝缘检查",
+                "recommendation": "设计文件提供「操作」的内容依据。",
+                "adoptedContent": "在电源输入端和规定测试点完成极性、通断及绝缘测量",
+                "contentDescription": null,
+                "sortNo": 0
+              },
+              {
+                "id": "example-id-0000",
+                "sourceType": "design_file",
+                "priority": 1,
+                "sourceFileName": "示例设计文件.docx",
+                "chapter": "11 试验指标要求及试验方法",
+                "pageNumber": null,
+                "location": "11 试验指标要求及试验方法 · 11.3 各功能点指标要求及试验方法 · 11.3.2 供电接口与绝缘检查",
+                "recommendation": "设计文件提供「操作」的内容依据。",
+                "adoptedContent": "断开供电→隔离敏感接口→完成测量→确认无残余电荷→恢复连接",
+                "contentDescription": null,
+                "sortNo": 1
+              }
+            ]
+          },
+          {
+            "id": "example-id-0000",
+            "fieldType": "function_performance_requirement",
+            "fieldName": "响应",
+            "fieldOrigin": "generated",
+            "adoptionStatus": "adopted",
+            "sortNo": 1,
+            "designFileCount": 2,
+            "fieldContent": {
+              "text": "接口状态与操作结果一致,反馈完整且无非预期跳变\n连接器和测试点无放电痕迹、松动或损伤",
+              "attachments": []
+            },
+            "suggestions": [],
+            "sourceReferences": [
+              {
+                "id": "example-id-0000",
+                "sourceType": "design_file",
+                "priority": 1,
+                "sourceFileName": "示例设计文件.docx",
+                "chapter": "11 试验指标要求及试验方法",
+                "pageNumber": null,
+                "location": "11 试验指标要求及试验方法 · 11.3 各功能点指标要求及试验方法 · 11.3.2 供电接口与绝缘检查",
+                "recommendation": "设计文件提供「响应」的内容依据。",
+                "adoptedContent": "接口状态与操作结果一致,反馈完整且无非预期跳变",
+                "contentDescription": null,
+                "sortNo": 0
+              },
+              {
+                "id": "example-id-0000",
+                "sourceType": "design_file",
+                "priority": 1,
+                "sourceFileName": "示例设计文件.docx",
+                "chapter": "11 试验指标要求及试验方法",
+                "pageNumber": null,
+                "location": "11 试验指标要求及试验方法 · 11.3 各功能点指标要求及试验方法 · 11.3.2 供电接口与绝缘检查",
+                "recommendation": "设计文件提供「响应」的内容依据。",
+                "adoptedContent": "连接器和测试点无放电痕迹、松动或损伤",
+                "contentDescription": null,
+                "sortNo": 1
+              }
+            ]
+          },
+          {
+            "id": "example-id-0000",
+            "fieldType": "logic_relation",
+            "fieldName": "逻辑关系",
+            "fieldOrigin": "generated",
+            "adoptionStatus": "adopted",
+            "sortNo": 2,
+            "designFileCount": 1,
+            "fieldContent": {
+              "text": "先执行操作1,其响应确认正常后方可执行操作2;操作1响应异常时不得执行操作2,立即中止并保留现场数据",
+              "attachments": []
+            },
+            "suggestions": [],
+            "sourceReferences": [
+              {
+                "id": "example-id-0000",
+                "sourceType": "design_file",
+                "priority": 1,
+                "sourceFileName": "示例设计文件.docx",
+                "chapter": "11 试验指标要求及试验方法",
+                "pageNumber": null,
+                "location": "11 试验指标要求及试验方法 · 11.3 各功能点指标要求及试验方法 · 11.3.2 供电接口与绝缘检查",
+                "recommendation": "设计文件提供「逻辑关系」的内容依据。",
+                "adoptedContent": "先执行操作1,其响应确认正常后方可执行操作2;操作1响应异常时不得执行操作2,立即中止并保留现场数据",
+                "contentDescription": null,
+                "sortNo": 0
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "id": "example-id-0000",
+        "pointName": "上电时序检查",
+        "pointOrigin": "generated",
+        "sourceType": "design_file",
+        "adoptionStatus": "adopted",
+        "sourceReferences": [
+          {
+            "id": "example-id-0000",
+            "sourceType": "design_file",
+            "priority": 1,
+            "sourceFileName": "示例设计文件.docx",
+            "chapter": "11 试验指标要求及试验方法",
+            "pageNumber": null,
+            "location": "11 试验指标要求及试验方法 · 11.3 各功能点指标要求及试验方法 · 11.3.3 上电时序检查",
+            "recommendation": "设计文件提供「确认各配电支路和设备内部电源按规定顺序建立,启动过程无反复掉电」的内容依据。",
+            "adoptedContent": "确认各配电支路和设备内部电源按规定顺序建立,启动过程无反复掉电\nDC 28V额定供电,限流值按技术要求设置\n连接电压探头、电流探头及上电允许离散量监测端口\n接口状态与操作结果一致,反馈完整且无非预期跳变",
+            "contentDescription": null,
+            "sortNo": 0
+          },
+          {
+            "id": "example-id-0000",
+            "sourceType": "design_file",
+            "priority": 1,
+            "sourceFileName": "示例设计文件.docx",
+            "chapter": "11 试验指标要求及试验方法",
+            "pageNumber": null,
+            "location": "11 试验指标要求及试验方法 · 11.3 各功能点指标要求及试验方法 · 11.3.3 上电时序检查",
+            "recommendation": "设计文件提供「各路电源建立顺序、间隔及初始化时间满足技术要求」的内容依据。",
+            "adoptedContent": "各路电源建立顺序、间隔及初始化时间满足技术要求\n任一路电压越限或启动电流触发限流时立即断电\n设置电压和限流→启动采集→按规定顺序闭合开关→确认初始化完成\n电源开关、接触器及指示装置动作顺序正确,无抖动和异响\n先执行操作1,其响应确认正常后方可执行操作2;操作1响应异常时不得执行操作2,立即中止并保留现场数据",
+            "contentDescription": null,
+            "sortNo": 1
+          }
+        ],
+        "fields": [
+          {
+            "id": "example-id-0000",
+            "fieldType": "function_performance_requirement",
+            "fieldName": "功能/性能要求",
+            "fieldOrigin": "generated",
+            "adoptionStatus": "adopted",
+            "sortNo": 1,
+            "designFileCount": 2,
+            "fieldContent": {
+              "text": "确认各配电支路和设备内部电源按规定顺序建立,启动过程无反复掉电\n各路电源建立顺序、间隔及初始化时间满足技术要求",
+              "attachments": []
+            },
+            "suggestions": [],
+            "sourceReferences": [
+              {
+                "id": "example-id-0000",
+                "sourceType": "design_file",
+                "priority": 1,
+                "sourceFileName": "示例设计文件.docx",
+                "chapter": "11 试验指标要求及试验方法",
+                "pageNumber": null,
+                "location": "11 试验指标要求及试验方法 · 11.3 各功能点指标要求及试验方法 · 11.3.3 上电时序检查",
+                "recommendation": "设计文件提供「功能/性能要求」的内容依据。",
+                "adoptedContent": "确认各配电支路和设备内部电源按规定顺序建立,启动过程无反复掉电",
+                "contentDescription": null,
+                "sortNo": 0
+              },
+              {
+                "id": "example-id-0000",
+                "sourceType": "design_file",
+                "priority": 1,
+                "sourceFileName": "示例设计文件.docx",
+                "chapter": "11 试验指标要求及试验方法",
+                "pageNumber": null,
+                "location": "11 试验指标要求及试验方法 · 11.3 各功能点指标要求及试验方法 · 11.3.3 上电时序检查",
+                "recommendation": "设计文件提供「功能/性能要求」的内容依据。",
+                "adoptedContent": "各路电源建立顺序、间隔及初始化时间满足技术要求",
+                "contentDescription": null,
+                "sortNo": 1
+              }
+            ]
+          },
+          {
+            "id": "example-id-0000",
+            "fieldType": "function_performance_requirement",
+            "fieldName": "功能/性能边界",
+            "fieldOrigin": "generated",
+            "adoptionStatus": "adopted",
+            "sortNo": 1,
+            "designFileCount": 2,
+            "fieldContent": {
+              "text": "DC 28V额定供电,限流值按技术要求设置\n任一路电压越限或启动电流触发限流时立即断电",
+              "attachments": []
+            },
+            "suggestions": [],
+            "sourceReferences": [
+              {
+                "id": "example-id-0000",
+                "sourceType": "design_file",
+                "priority": 1,
+                "sourceFileName": "示例设计文件.docx",
+                "chapter": "11 试验指标要求及试验方法",
+                "pageNumber": null,
+                "location": "11 试验指标要求及试验方法 · 11.3 各功能点指标要求及试验方法 · 11.3.3 上电时序检查",
+                "recommendation": "设计文件提供「功能/性能边界」的内容依据。",
+                "adoptedContent": "DC 28V额定供电,限流值按技术要求设置",
+                "contentDescription": null,
+                "sortNo": 0
+              },
+              {
+                "id": "example-id-0000",
+                "sourceType": "design_file",
+                "priority": 1,
+                "sourceFileName": "示例设计文件.docx",
+                "chapter": "11 试验指标要求及试验方法",
+                "pageNumber": null,
+                "location": "11 试验指标要求及试验方法 · 11.3 各功能点指标要求及试验方法 · 11.3.3 上电时序检查",
+                "recommendation": "设计文件提供「功能/性能边界」的内容依据。",
+                "adoptedContent": "任一路电压越限或启动电流触发限流时立即断电",
+                "contentDescription": null,
+                "sortNo": 1
+              }
+            ]
+          },
+          {
+            "id": "example-id-0000",
+            "fieldType": "function_performance_requirement",
+            "fieldName": "操作",
+            "fieldOrigin": "generated",
+            "adoptionStatus": "adopted",
+            "sortNo": 1,
+            "designFileCount": 2,
+            "fieldContent": {
+              "text": "连接电压探头、电流探头及上电允许离散量监测端口\n设置电压和限流→启动采集→按规定顺序闭合开关→确认初始化完成",
+              "attachments": []
+            },
+            "suggestions": [],
+            "sourceReferences": [
+              {
+                "id": "example-id-0000",
+                "sourceType": "design_file",
+                "priority": 1,
+                "sourceFileName": "示例设计文件.docx",
+                "chapter": "11 试验指标要求及试验方法",
+                "pageNumber": null,
+                "location": "11 试验指标要求及试验方法 · 11.3 各功能点指标要求及试验方法 · 11.3.3 上电时序检查",
+                "recommendation": "设计文件提供「操作」的内容依据。",
+                "adoptedContent": "连接电压探头、电流探头及上电允许离散量监测端口",
+                "contentDescription": null,
+                "sortNo": 0
+              },
+              {
+                "id": "example-id-0000",
+                "sourceType": "design_file",
+                "priority": 1,
+                "sourceFileName": "示例设计文件.docx",
+                "chapter": "11 试验指标要求及试验方法",
+                "pageNumber": null,
+                "location": "11 试验指标要求及试验方法 · 11.3 各功能点指标要求及试验方法 · 11.3.3 上电时序检查",
+                "recommendation": "设计文件提供「操作」的内容依据。",
+                "adoptedContent": "设置电压和限流→启动采集→按规定顺序闭合开关→确认初始化完成",
+                "contentDescription": null,
+                "sortNo": 1
+              }
+            ]
+          },
+          {
+            "id": "example-id-0000",
+            "fieldType": "function_performance_requirement",
+            "fieldName": "响应",
+            "fieldOrigin": "generated",
+            "adoptionStatus": "adopted",
+            "sortNo": 1,
+            "designFileCount": 2,
+            "fieldContent": {
+              "text": "接口状态与操作结果一致,反馈完整且无非预期跳变\n电源开关、接触器及指示装置动作顺序正确,无抖动和异响",
+              "attachments": []
+            },
+            "suggestions": [],
+            "sourceReferences": [
+              {
+                "id": "example-id-0000",
+                "sourceType": "design_file",
+                "priority": 1,
+                "sourceFileName": "示例设计文件.docx",
+                "chapter": "11 试验指标要求及试验方法",
+                "pageNumber": null,
+                "location": "11 试验指标要求及试验方法 · 11.3 各功能点指标要求及试验方法 · 11.3.3 上电时序检查",
+                "recommendation": "设计文件提供「响应」的内容依据。",
+                "adoptedContent": "接口状态与操作结果一致,反馈完整且无非预期跳变",
+                "contentDescription": null,
+                "sortNo": 0
+              },
+              {
+                "id": "example-id-0000",
+                "sourceType": "design_file",
+                "priority": 1,
+                "sourceFileName": "示例设计文件.docx",
+                "chapter": "11 试验指标要求及试验方法",
+                "pageNumber": null,
+                "location": "11 试验指标要求及试验方法 · 11.3 各功能点指标要求及试验方法 · 11.3.3 上电时序检查",
+                "recommendation": "设计文件提供「响应」的内容依据。",
+                "adoptedContent": "电源开关、接触器及指示装置动作顺序正确,无抖动和异响",
+                "contentDescription": null,
+                "sortNo": 1
+              }
+            ]
+          },
+          {
+            "id": "example-id-0000",
+            "fieldType": "logic_relation",
+            "fieldName": "逻辑关系",
+            "fieldOrigin": "generated",
+            "adoptionStatus": "adopted",
+            "sortNo": 2,
+            "designFileCount": 1,
+            "fieldContent": {
+              "text": "先执行操作1,其响应确认正常后方可执行操作2;操作1响应异常时不得执行操作2,立即中止并保留现场数据",
+              "attachments": []
+            },
+            "suggestions": [],
+            "sourceReferences": [
+              {
+                "id": "example-id-0000",
+                "sourceType": "design_file",
+                "priority": 1,
+                "sourceFileName": "示例设计文件.docx",
+                "chapter": "11 试验指标要求及试验方法",
+                "pageNumber": null,
+                "location": "11 试验指标要求及试验方法 · 11.3 各功能点指标要求及试验方法 · 11.3.3 上电时序检查",
+                "recommendation": "设计文件提供「逻辑关系」的内容依据。",
+                "adoptedContent": "先执行操作1,其响应确认正常后方可执行操作2;操作1响应异常时不得执行操作2,立即中止并保留现场数据",
+                "contentDescription": null,
+                "sortNo": 0
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  }
+}

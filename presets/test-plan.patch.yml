@@ -1,0 +1,43 @@
+# 试验方案文档 Agent 预设。
+#
+# 0.1.7 起 preset 由 @deepseek-ai/dsh-agent-preset 行声明，并作为独立 patch 文件列在
+# package.json 的 dsh.bundle.patch 数组里 —— 注册表不再扫描目录，也不接受 preset 路径。
+#
+# dsh-web-app 已在 host 层关掉 tool-bash / tool-fs / tool-web 等；那些工具只有被 preset
+# 重新挂载后才会进入会话。本预设故意不挂它们。
+#
+# 方案数据由独立进程的 MCP server 以资源形式提供：host 层的 mcp-test-plan 行连上它，
+# dsh-base 自带的 mcp-resources 行把 list_mcp_resources / read_mcp_resource 等交给模型；
+# read_static_doc / write_chapter 由 host 层 dsh-test-plan-tool 注册，本预设继承即可。
+#
+# tool-filter 只做一件事：把 test-plan 这台 server 上不想暴露的工具挡掉。
+# 它必须挂在 preset 作用域 —— restriction 只约束「本 scope 继承来的」工具。
+#
+# 不要给 persona 设 complete: true —— 否则会压掉插件注册的 tool:test-plan-doc 提示词段。
+- insert:
+    - id: preset-test-plan
+      name: '@deepseek-ai/dsh-agent-preset'
+      config:
+        # config.id 是会话保存的 preset 标识符；行 id 只是 Loader 的编辑地址。
+        id: test-plan
+        name: 试验方案
+        description: 读 MCP 方案资源按需取数，只读查阅章节模版，按公文顺序逐章写入。
+        order: 0
+        plugins:
+          - id: persona
+            name: '@deepseek-ai/dsh-persona'
+            config:
+              prefix: >-
+                你是试验方案文档生成助手，由 {{model}} 驱动。
+                先用 read_mcp_resource 读方案资源（先读目录 plan://plans/<planId>，再按需读功能点切片），
+                再用 read_static_doc 读当前章节模版，最后带 planId 逐章调用 write_chapter。
+                模版会更新，以读到的当前文件为准；程序不改写章节内容。
+              suffix: 当前工作目录是 {{cwd}}。
+
+          # 白名单过滤：只启用 server 上的 server_health，其余工具从本预设作用域挡掉。
+          - id: test-plan-tool-filter
+            name: dsh-test-plan-tool/base-plugin/tool-filter
+            config:
+              servers:
+                - server: test-plan
+                  allow: [server_health]

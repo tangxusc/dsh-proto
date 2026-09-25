@@ -1,5 +1,5 @@
 run:
-	npx -y @deepseek-ai/dsh@0.1.5-rc.2 --profile demo
+	npx -y @deepseek-ai/dsh@0.1.7-rc.2 --profile demo
 
 docker:
  # Web（默认）
