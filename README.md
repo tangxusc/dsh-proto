@@ -53,6 +53,7 @@ dsh --profile <profile> --no-open
 | `resources/` | 静态资料、章节模版与 MCP fixture |
 | `presets/` | Agent 预设声明 |
 | `test/` | 单测与 e2e |
+| `verify/` | agent 作用域探针（不进发布包；验证 preset 里的插件与工具裁剪真的生效） |
 | `docker/` | 镜像内预置的 web / tui profile |
 | `dsh-output/` | 生成文档落盘 |
 | `dsh-plan-state/` | 写章进度文件回退 |
@@ -99,12 +100,44 @@ dsh web: http://127.0.0.1:3080/?token=<token>
 核对插件与预设是否生效：
 
 ```sh
-$DSH --profile <profile> --dump-config | grep -A 6 dsh-test-plan-tool
+# 静态接线：章节工具应在 preset-test-plan 之下（缩进 6），不在 host 顶层
+$DSH --profile <profile> --dump-config | grep -B 2 -A 8 'id: preset-test-plan'
 $DSH --profile <profile> --dump-config | grep -A 6 'id: agent-preset-registry'
-$DSH --profile <profile> --dump-config | grep -A 8 'id: preset-test-plan'
+
+# 运行时效果（agent 作用域）：真读一次该 agent 可见的工具清单
+node lib/mcp/server.js --port 8096 &                                          # 进程 A（必须先起）
+$DSH --profile <profile> --patch verify/probe.patch.yml --no-open --port 3082  # 进程 B，exit 0 = PASS
 ```
 
-应看到本包配置、`default: test-plan`，以及 `preset-test-plan` 那条 `@deepseek-ai/dsh-agent-preset` 声明。已开始的旧会话仍沿用创建时的预设，需新建会话才会切到 `test-plan`。
+进程 B 等价于 `npm run verify:preset`（该脚本把 profile 固定为 `tptest`，并自带 dsh 版本）。
+进程 A 必须先起 —— 否则探针等 20s 超时后会提示「MCP server 起了吗」。
+
+应看到：`default: test-plan`；`preset-test-plan` 的 `plugins` 里有 `persona` / `test-plan-tool` /
+`test-plan-tool-filter`；探针输出 `visible tools` 含 `read_static_doc` / `write_chapter` 与
+`mcp__test-plan__server_health`，**不含** `mcp__test-plan__echo`。
+
+⚠️ `--patch` 是 launcher flag，必须排在 `--no-open` / `--port` 这些 **app 参数之前**，
+否则会报 `unknown option '--patch'`。
+
+TUI 路径（容器内，需要 TTY）。探针**不自己建 agent** —— 它等 TUI 建出会话，再读**那个**会话的可见工具：
+
+```sh
+docker run -t --rm -e CHENGFEI_API_KEY=... \
+  -v "$PWD/verify:/tmp/verify:ro" -v /tmp/tui-verify:/out \
+  --entrypoint sh dsh-test-plan-tool:0.1.0 -c '
+    node /opt/dsh-home/profiles/node_modules/dsh-test-plan-tool/lib/mcp/server.js --port 8096 >/tmp/mcp.log 2>&1 &
+    sleep 3
+    exec /opt/entrypoint.sh tui --patch /tmp/verify/tui-probe.patch.yml'
+cat /tmp/tui-verify/result.txt          # exit 0 = PASS
+```
+
+应看到 `composedPreset = test-plan`，且 `visible tools` 含 `read_static_doc` / `write_chapter`
+与 `mcp__test-plan__server_health`，**不含** `mcp__test-plan__echo`。
+
+⚠️ TUI 依赖 `docker/profile-tui/compatibility.json` 里的版本豁免 —— 缺了它整个 TUI bundle
+会被 dsh 的兼容守卫跳过，preset 永远停在 pending。原因与重新生成方式见 `docker/profile-tui/README.md`。
+
+已开始的旧会话仍沿用创建时的预设，需新建会话才会切到 `test-plan`。
 
 ## 测试
 

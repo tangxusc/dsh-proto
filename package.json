@@ -40,7 +40,8 @@
     "typecheck": "tsc --noEmit && tsc -p tsconfig.test.json --noEmit",
     "test": "tsc && tsc -p tsconfig.test.json --noEmit && node --experimental-strip-types --test test/*.test.ts",
     "e2e:mcp": "node --experimental-strip-types --test test/mcp-e2e.test.ts",
-    "mcp:serve": "node lib/mcp/server.js"
+    "mcp:serve": "node lib/mcp/server.js",
+    "verify:preset": "npx -y @deepseek-ai/dsh@0.1.7-rc.2 --profile tptest --patch verify/probe.patch.yml --no-open --port 3082"
   },
   "dsh": {
     "bundle": {

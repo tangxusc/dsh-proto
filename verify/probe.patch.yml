@@ -1,0 +1,13 @@
+# 一次性 overlay：把 preset 探针挂成 host 行。
+#
+# `name: ./preset_probe.js` 里的相对路径会被 dsh 改写成**锚定在本文件旁**的 file:// URL
+# （dsh-app-boot 的 anchorInsertedPluginNames），所以探针不必装进 node_modules。
+# 绝对路径同样可行；但**纯裸名会失败**（会被当包名解析）。
+#
+# 用法：
+#   node lib/mcp/server.js --port 8096                                  # 进程 A
+#   node <dsh>/lib/bin.js --profile tptest --no-open --port 0 \
+#     --patch verify/probe.patch.yml                                    # 进程 B，exit 0 = PASS
+- insert:
+    - id: verify-preset-probe
+      name: ./preset_probe.js

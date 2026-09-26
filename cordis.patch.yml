@@ -1,12 +1,20 @@
-# 组合包层：向当前组合插入基础扩展与业务扩展。
+# 组合包层：向当前组合插入**基础扩展**（host 层）。
 #
-# 基础扩展（src/base_plugin/）与业务扩展（test-plan-tool）分开：
-# - redis-kv-store：独立的 Redis Provider 行，提供 extKvStore 服务供其它插件消费。
-# - internal-auth：内部网络无 token 鉴权 patch。
-# - tool-filter：按 server 过滤 MCP 工具的白名单（挂在 agent 预设里，见 presets/）。
-# - test-plan-tool：业务插件（只读查阅 + 写章两个工具 + 提示词）。
+# 分层判据（详见 presets/README.md）：
+# - **host 层（本文件）**：进程级 / 服务提供者 / 所有会话共享的行。
+# - **agent plane（presets/*.patch.yml 的 plugins）**：会话级 / 工具裁剪 / 角色设定的行。
 #
-# 方案数据由**独立进程**的 MCP server 以资源形式提供：mcp-test-plan 行连上它，
+# 本文件的行：
+# - redis-kv-store：Redis Provider，用 ctx.provide 提供 extKvStore 服务供其它插件消费。
+#   服务提供者必须放 host 层 —— 放 preset 会变成每会话一份实例，webServer 路由还会重复注册。
+# - internal-auth：内部网络无 token 鉴权 patch（包装进程级的 connection.requestRejection）。
+# - mcp-test-plan：MCP 桥接，把**独立进程**的 server 的工具注册进全局层。
+#   它必须与 preset 里的 tool-filter **分层** —— restriction 只过滤「继承来的」工具，同层就过滤不到。
+#
+# 在 presets/test-plan.patch.yml 里的（不在此文件）：persona、test-plan-tool-filter、
+# test-plan-tool（章节生成工具 read_static_doc / write_chapter）。
+#
+# 方案数据由 MCP server 以**资源**形式提供：mcp-test-plan 行连上它，
 # dsh-base 自带的 mcp-resources 行再把资源工具交给模型。本包不取数、不落盘方案 JSON。
 #
 # 用户可在自己 profile 的 cordis.patch.yml 中按 id 覆盖下面这些行来改配置——
@@ -50,19 +58,9 @@
         failOnStartupError: false
         reconnect: { enabled: true, initialDelayMs: 500, maxDelayMs: 30000, maxAttempts: 10 }
 
-    # 业务扩展：只读查阅 + 写章（方案数据走上面的 MCP 资源，本插件不取数、不落盘方案 JSON）。
-    - id: test-plan-tool
-      name: dsh-test-plan-tool
-      config:
-        # 生成文档的输出目录；相对路径以 dsh 进程工作目录为基准。
-        outDir: 'dsh-output'
-        # 静态参考文档根；空则使用插件自带 resources/doc。
-        docDir: ''
-        # 按 session 隔离的写章进度 sidecar（redis 未启用时的回退）。
-        stateDir: 'dsh-plan-state'
-        # 写章进度存 redis 时的键前缀与过期秒数（业务如何使用 extKvStore 服务）。
-        keyPrefix: 'dsh:plan-state:'
-        ttlSeconds: 259200
+    # 章节生成工具（test-plan-tool）**不在这里** —— 它注册的 read_static_doc / write_chapter
+    # 只对 test-plan 预设的会话有意义，所以挂在 presets/test-plan.patch.yml 的 plugins 里
+    # （agent plane），避免污染其它预设的工具列表。分层判据见 presets/README.md。
 
 # Web 把 model-facing 工具挪到 agent preset。本层把默认预设改成 test-plan。
 #

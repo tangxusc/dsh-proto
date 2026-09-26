@@ -6,6 +6,7 @@ dsh-plan-data
 dsh-plan-state
 dsh-output-test
 test
+verify
 lib
 dist
 .DS_Store

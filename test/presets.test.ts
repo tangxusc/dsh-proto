@@ -34,6 +34,9 @@ test('preset 声明为 @deepseek-ai/dsh-agent-preset 行，含 id / 展示信息
   assert.match(patch, /^\s+name:\s*试验方案$/m)
   assert.match(patch, /^\s+plugins:\s*$/m)
   assert.match(patch, /@deepseek-ai\/dsh-persona/)
+  // 章节工具必须挂在 preset 里（不是 host 层）—— 漏挂会静默失去 read_static_doc / write_chapter。
+  assert.match(patch, /^\s+- id:\s*test-plan-tool$/m)
+  assert.match(patch, /^\s+- id:\s*test-plan-tool-filter$/m)
 })
 
 test('persona 不设 complete，以免压掉 tool:test-plan-doc', () => {
@@ -88,15 +91,36 @@ test('组合包插入 dsh-mcp-client 行，地址可配置且不阻断启动', (
   assert.match(patch, /failOnStartupError:\s*false/)
 })
 
-test('取数相关的配置键已随功能删除', () => {
-  const patch = stripComments(read('cordis.patch.yml'))
+test('章节工具只挂在 preset 里，且取数相关的配置键已删除', () => {
+  const host = stripComments(read('cordis.patch.yml'))
+  const preset = stripComments(read(PRESET_PATCH))
+
+  // 取数链路的配置键已随功能删除。
   for (const gone of ['tenantId', 'timeoutMs', 'dataDir']) {
-    assert.doesNotMatch(patch, new RegExp(`^\\s+${gone}:`, 'm'), `不应再有 ${gone}`)
+    assert.doesNotMatch(host, new RegExp(`^\\s+${gone}:`, 'm'), `host 层不应再有 ${gone}`)
+    assert.doesNotMatch(preset, new RegExp(`^\\s+${gone}:`, 'm'), `preset 里也不应有 ${gone}`)
   }
-  // test-plan-tool 行只剩输出与进度相关配置。
-  assert.match(patch, /id:\s*test-plan-tool/)
-  assert.match(patch, /outDir:\s*'dsh-output'/)
-  assert.match(patch, /stateDir:\s*'dsh-plan-state'/)
+
+  // test-plan-tool 已搬进 preset（agent plane）—— host 层不再有这一行。
+  // 正则必须**锚定行尾**：`\b` 在 `l` 与 `-` 之间成立，`/id:\s*test-plan-tool\b/`
+  // 会同时命中 `- id: test-plan-tool-filter`，那样「应存在」这条会被虚假满足。
+  assert.doesNotMatch(host, /^\s*- id:\s*test-plan-tool$/m, '章节工具不应再挂在 host 层')
+  assert.match(preset, /^\s*- id:\s*test-plan-tool$/m, '章节工具应在 preset 的 plugins 里')
+  // 搬层后配置键跟着走，不能留在 host 层。
+  assert.match(preset, /outDir:\s*'dsh-output'/)
+  assert.match(preset, /stateDir:\s*'dsh-plan-state'/)
+})
+
+test('host 层仍保留服务提供者与 MCP 桥接（这些不能搬进 preset）', () => {
+  const host = stripComments(read('cordis.patch.yml'))
+  // 锚定行尾：避免 `redis-kv-store` 之类被同前缀的 id 或 name 行误命中。
+  // redis-kv-store 是**服务提供者**：放 preset 会变成每会话一份实例，webServer 路由还会重复注册。
+  assert.match(host, /^\s*- id:\s*redis-kv-store$/m)
+  // internal-auth 包装的是进程级的 connection.requestRejection。
+  assert.match(host, /^\s*- id:\s*internal-auth$/m)
+  // mcp-test-plan 注册 mcp__test-plan__*，必须与 preset 里的 tool-filter **分层**才能被过滤
+  // （restriction 只过滤「继承来的」工具，同层过滤不到）。
+  assert.match(host, /^\s*- id:\s*mcp-test-plan$/m)
 })
 
 test('组合包把 agent-preset-registry 默认改成 test-plan', () => {

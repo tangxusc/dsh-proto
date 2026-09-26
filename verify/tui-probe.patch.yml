@@ -1,0 +1,7 @@
+# TUI 路径的一次性 overlay：把探针挂成 host 行。
+#
+# `name: ./tui_probe.js` 会按相对路径解析成锚定在**本文件旁**的 file:// URL。
+# 在容器里把本文件与 tui_probe.js 一起挂进去即可（见文件头注释的 docker run 示例）。
+- insert:
+    - id: verify-tui-probe
+      name: ./tui_probe.js

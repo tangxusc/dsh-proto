@@ -7,11 +7,13 @@
 # 重新挂载后才会进入会话。本预设故意不挂它们。
 #
 # 方案数据由独立进程的 MCP server 以资源形式提供：host 层的 mcp-test-plan 行连上它，
-# dsh-base 自带的 mcp-resources 行把 list_mcp_resources / read_mcp_resource 等交给模型；
-# read_static_doc / write_chapter 由 host 层 dsh-test-plan-tool 注册，本预设继承即可。
+# dsh-base 自带的 mcp-resources 行把 list_mcp_resources / read_mcp_resource 等交给模型。
 #
-# tool-filter 只做一件事：把 test-plan 这台 server 上不想暴露的工具挡掉。
-# 它必须挂在 preset 作用域 —— restriction 只约束「本 scope 继承来的」工具。
+# 本预设自己挂三个插件：persona（角色）、test-plan-tool（章节工具）、tool-filter（工具白名单）。
+# 只有 mcp-test-plan / redis-kv-store / internal-auth 留在 host 层（见 cordis.patch.yml）。
+#
+# tool-filter 必须挂在 preset 作用域 —— restriction 只约束「本 scope 继承来的」工具，
+# 而它要过滤的 mcp__test-plan__* 来自 host 层（对 preset 而言是继承来的），所以分层是必需的。
 #
 # 不要给 persona 设 complete: true —— 否则会压掉插件注册的 tool:test-plan-doc 提示词段。
 - insert:
@@ -33,6 +35,22 @@
                 再用 read_static_doc 读当前章节模版，最后带 planId 逐章调用 write_chapter。
                 模版会更新，以读到的当前文件为准；程序不改写章节内容。
               suffix: 当前工作目录是 {{cwd}}。
+
+          # 章节生成工具：read_static_doc + write_chapter + 提示词段 tool:test-plan-doc。
+          # 挂在本预设（agent plane）而不是 host 层 —— 这两个工具只对本预设的会话有意义，
+          # 放 host 层会污染其它预设的工具列表。
+          - id: test-plan-tool
+            name: dsh-test-plan-tool
+            config:
+              # 生成文档的输出目录；相对路径以 dsh 进程工作目录为基准。
+              outDir: 'dsh-output'
+              # 静态参考文档根；空则使用插件自带 resources/doc。
+              docDir: ''
+              # 按 session 隔离的写章进度 sidecar（redis 未启用时的回退）。
+              stateDir: 'dsh-plan-state'
+              # 写章进度存 redis 时的键前缀与过期秒数（消费 host 层提供的 extKvStore 服务）。
+              keyPrefix: 'dsh:plan-state:'
+              ttlSeconds: 259200
 
           # 白名单过滤：只启用 server 上的 server_health，其余工具从本预设作用域挡掉。
           - id: test-plan-tool-filter
